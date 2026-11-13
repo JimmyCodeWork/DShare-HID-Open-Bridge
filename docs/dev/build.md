@@ -64,6 +64,14 @@ After each build, the Qt and OpenSSL DLLs are copied next to the executables and
 build tree (see [`cmake/WindowsRuntime.cmake`](../../cmake/WindowsRuntime.cmake)), so they run
 without changing `PATH`.
 
+#### Compiler cache
+
+If [sccache] is on `PATH`, `run_task.bat` uses it as the compiler launcher. Builds after a clean
+configure (options 2, 4 and 5 delete `build`) then reuse earlier compile results instead of
+compiling every file again. Install it with `winget install Mozilla.sccache`. Set `USE_SCCACHE=0`
+to build without it. When configuring by hand, pass
+`-DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache`.
+
 #### vcpkg (legacy)
 
 If `QT_ROOT` is not set, `run_task.bat` uses vcpkg from `VCPKG_ROOT` with `-DVCPKG_QT=ON`.
@@ -123,3 +131,4 @@ After configuring you should be able to run make to build all targets.
 [libportal]:https://github.com/flatpak/libportal
 [libxkbcommon]:https://xkbcommon.org/
 [aqtinstall]:https://github.com/miurahr/aqtinstall
+[sccache]:https://github.com/mozilla/sccache

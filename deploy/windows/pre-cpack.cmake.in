@@ -11,10 +11,16 @@ if(CPACK_GENERATOR MATCHES 7Z|ZIP)
   file(WRITE "${CPACK_TEMPORARY_INSTALL_DIRECTORY}/settings/@CMAKE_PROJECT_PROPER_NAME@.conf" " ")
   file(REMOVE ${CPACK_TEMPORARY_INSTALL_DIRECTORY}/dshare-hid-daemon.exe)
   file(WRITE ${CPACK_TEMPORARY_INSTALL_DIRECTORY}/README.txt
-" Portable DShare-HID: @CMAKE_PROJECT_VERSION@
+"@CMAKE_PROJECT_PROPER_NAME@ @PACKAGE_VERSION_LABEL@ (portable)
 
-  The portable version must have the settings/@CMAKE_PROJECT_PROPER_NAME@.conf file to save settings, or it will try to use the system settings location.
-  The portable version does not include the daemon, so the client will not work at UAC prompts or the login screen.
+Run dshare-hid.exe from this folder. No installation is required.
+
+- Settings are stored in settings/@CMAKE_PROJECT_PROPER_NAME@.conf next to the program.
+  Keep this file: without it, the program uses the system settings location instead.
+- The portable version does not include the background service (daemon), so keyboard
+  and mouse sharing does not work at UAC prompts or on the sign-in screen. Use the MSI
+  installer if you need that.
+- The Microsoft Visual C++ runtime is included; no separate installation is needed.
 ")
 endif()
 
