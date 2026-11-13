@@ -62,6 +62,7 @@ exit /b %ERRORLEVEL%
 :Pristine
 call :SetupEnv
 call :SetupDeps || exit /b 1
+call :SetupCompilerCache
 echo --- CLEANING AND RECONFIGURING (PRISTINE) ---
 if exist build rd /s /q build
 call :Configure
@@ -71,10 +72,11 @@ exit /b 0
 :Release
 call :SetupEnv
 call :SetupDeps || exit /b 1
+call :SetupCompilerCache
 echo --- CLEANING AND RECONFIGURING (RELEASE) ---
 if exist build rd /s /q build
 echo --- CONFIGURING ---
-cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release %DEPS_ARGS% -DBUILD_TESTS=OFF -DDESKFLOW_PAYPAL_ACCOUNT="%PAYPAL_ACCOUNT%" -DDESKFLOW_PAYPAL_URL="%PAYPAL_URL%" -DDESKFLOW_CDC_PUBLIC_KEY="%DESKFLOW_CDC_PUBLIC_KEY%" -DDESKFLOW_ESP32_ENCRYPTION_KEY="%DESKFLOW_ESP32_ENCRYPTION_KEY%"
+cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release %DEPS_ARGS% %CACHE_ARGS% -DBUILD_TESTS=OFF -DDESKFLOW_PAYPAL_ACCOUNT="%PAYPAL_ACCOUNT%" -DDESKFLOW_PAYPAL_URL="%PAYPAL_URL%" -DDESKFLOW_CDC_PUBLIC_KEY="%DESKFLOW_CDC_PUBLIC_KEY%" -DDESKFLOW_ESP32_ENCRYPTION_KEY="%DESKFLOW_ESP32_ENCRYPTION_KEY%"
 echo Release Configuration complete. Run option 1 to build.
 exit /b %ERRORLEVEL%
 
@@ -105,7 +107,7 @@ exit /b 0
 
 :Configure
 echo --- CONFIGURING ---
-cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release %DEPS_ARGS% -DBUILD_TESTS=OFF -DDESKFLOW_PAYPAL_ACCOUNT="%PAYPAL_ACCOUNT%" -DDESKFLOW_PAYPAL_URL="%PAYPAL_URL%"
+cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release %DEPS_ARGS% %CACHE_ARGS% -DBUILD_TESTS=OFF -DDESKFLOW_PAYPAL_ACCOUNT="%PAYPAL_ACCOUNT%" -DDESKFLOW_PAYPAL_URL="%PAYPAL_URL%"
 exit /b %ERRORLEVEL%
 
 :SetupEnv
@@ -152,6 +154,23 @@ if not defined VCPKG_ROOT (
 )
 set "DEPS_ARGS=-DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT:\=/%/scripts/buildsystems/vcpkg.cmake -DVCPKG_MANIFEST_MODE=ON -DVCPKG_TARGET_TRIPLET=x64-windows -DVCPKG_QT=ON"
 echo Using vcpkg from %VCPKG_ROOT% ^(QT_ROOT is not set^)
+exit /b 0
+
+:SetupCompilerCache
+rem Use sccache as the compiler launcher when it is installed, so rebuilding after a clean
+rem configure (options 2, 4 and 5) reuses earlier compile results. Set USE_SCCACHE=0 to disable.
+set "CACHE_ARGS="
+if "%USE_SCCACHE%"=="0" (
+    echo Compiler cache: disabled ^(USE_SCCACHE=0^)
+    exit /b 0
+)
+where sccache >nul 2>nul
+if errorlevel 1 (
+    echo Compiler cache: sccache not found; install it with "winget install Mozilla.sccache" to speed up rebuilds.
+    exit /b 0
+)
+set "CACHE_ARGS=-DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
+echo Compiler cache: sccache
 exit /b 0
 
 :SetupQt
