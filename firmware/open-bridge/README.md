@@ -1,8 +1,9 @@
 # Open bridge firmware (in progress)
 
 This directory is not yet a flashable firmware. The USB link decoder is a
-platform-independent first piece; BLE HID, authentication, persistence and
-device integration still need implementation and hardware verification.
+platform-independent first piece. HID event conversion is also implemented as
+portable code; BLE HID, authentication, persistence and device integration
+still need implementation and hardware verification.
 
 The decoder accepts payloads up to 256 bytes and discards malformed headers.
 The caller must reset it when a USB session ends or a partial frame times out;
@@ -17,4 +18,8 @@ g++ -std=c++17 -Wall -Wextra -Werror -fsanitize=address,undefined \
   firmware/open-bridge/usb_frame_decoder.cpp \
   firmware/open-bridge/tests/usb_frame_decoder_test.cpp -o /tmp/usb-frame-test
 /tmp/usb-frame-test
+g++ -std=c++17 -Wall -Wextra -Werror -fsanitize=address,undefined \
+  firmware/open-bridge/hid_state.cpp \
+  firmware/open-bridge/tests/hid_state_test.cpp -o /tmp/hid-state-test
+/tmp/hid-state-test
 ```
