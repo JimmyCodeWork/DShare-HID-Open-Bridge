@@ -5,6 +5,9 @@
 
 cmake_minimum_required(VERSION 3.24)
 
+# Modified 2026-11-13: default this fork to independently built bridge firmware.
+include(cmake/CustomBridge.cmake)
+
 # Link items by fill path
 cmake_policy(SET CMP0003 NEW)
 

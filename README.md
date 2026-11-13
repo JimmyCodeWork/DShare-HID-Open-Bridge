@@ -4,6 +4,11 @@
 
 # DShare-HID
 
+> **Custom bridge development fork (2026-11-13):** This fork is preparing support for
+> independently built ESP32-C3 firmware with owner-controlled device keys. Start with
+> [the custom bridge development guide](docs/custom-bridge.md). The replacement firmware
+> is not implemented yet; the upstream documentation below describes the original product.
+
 **Share your computer's keyboard and mouse with iPad, iPhone and Android.**
 
 <a href="https://github.com/lockekk/dshare-hid/releases/latest"><img src="https://img.shields.io/badge/Download-latest%20release-2EA44F?style=for-the-badge&logo=github&logoColor=white" alt="Download the latest release"></a>

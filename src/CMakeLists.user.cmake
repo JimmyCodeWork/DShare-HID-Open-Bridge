@@ -1,13 +1,14 @@
 set(ESP32_HID_TOOLS_DIR "${CMAKE_SOURCE_DIR}/submodules/esp32-hid-tools")
 
-if(EXISTS "${ESP32_HID_TOOLS_DIR}/CMakeLists.txt")
+# Modified 2026-11-13: custom bridge builds must not load vendor tooling.
+if(DSH_VENDOR_FIRMWARE_TOOLS AND EXISTS "${ESP32_HID_TOOLS_DIR}/CMakeLists.txt")
   set(HAS_ESP32_HID_TOOLS ON)
   message(STATUS "ESP32 HID Tools: Found at ${ESP32_HID_TOOLS_DIR}")
   add_subdirectory(${ESP32_HID_TOOLS_DIR} ${CMAKE_BINARY_DIR}/submodules/esp32-hid-tools)
   include_directories(${ESP32_HID_TOOLS_DIR})
 else()
   set(HAS_ESP32_HID_TOOLS OFF)
-  message(STATUS "ESP32 HID Tools: Submodule not found at ${ESP32_HID_TOOLS_DIR}, disabling.")
+  message(STATUS "ESP32 HID Tools: Disabled or unavailable; using the open bridge transport only.")
 endif()
 
 # Handle optional custom public key for CDC Transport (ECDSA)
