@@ -30,15 +30,22 @@ jobs:
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" -DVCPKG_MANIFEST_MODE=ON -DVCPKG_TARGET_TRIPLET=x64-windows -DVCPKG_QT=OFF -DDSH_CUSTOM_BRIDGE=ON -DBUILD_TESTS=OFF -DBUILD_INSTALLER=ON
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Build and package
+      - name: Build
         shell: pwsh
         run: |
           cmake --build build --parallel 2
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Package
+        shell: pwsh
+        run: |
           cmake --build build --target package
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($LASTEXITCODE -ne 0) {
+            Get-ChildItem build/_CPack_Packages -Filter wix.log -Recurse | ForEach-Object { Get-Content $_.FullName }
+            exit 1
+          }
           if (-not (Get-ChildItem build/*.msi)) { throw 'No MSI was generated' }
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: windows-preview-packages
           path: |
