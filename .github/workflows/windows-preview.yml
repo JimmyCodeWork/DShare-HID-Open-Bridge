@@ -3,16 +3,61 @@ on:
   workflow_dispatch:
   push:
     branches: [build/windows-preview]
+  workflow_call:
+    inputs:
+      ref:
+        description: Git ref to build (defaults to the triggering ref).
+        type: string
+        default: ''
+      version-label:
+        description: Package version label, with or without a leading "v".
+        type: string
+        default: ''
+      artifact-name:
+        description: Name of the uploaded workflow artifact.
+        type: string
+        default: windows-preview-packages
+    outputs:
+      artifact-name:
+        description: Name of the uploaded workflow artifact.
+        value: ${{ jobs.package.outputs.artifact-name }}
 permissions:
   contents: read
+  id-token: write
+  attestations: write
 jobs:
   package:
     runs-on: windows-2022
     timeout-minutes: 120
+    outputs:
+      artifact-name: ${{ steps.meta.outputs.artifact-name }}
+    env:
+      # Signing is enabled only when a certificate secret is configured.
+      # See docs/windows-code-signing.md.
+      WINDOWS_SIGNING_CERTIFICATE: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE }}
+      WINDOWS_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE_PASSWORD }}
+      WINDOWS_SIGNING_TIMESTAMP_URL: ${{ vars.WINDOWS_SIGNING_TIMESTAMP_URL }}
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.ref || github.ref }}
           fetch-depth: 0
+      - name: Resolve package metadata
+        id: meta
+        shell: pwsh
+        env:
+          VERSION_LABEL: ${{ inputs.version-label || '0.1.0-alpha.2' }}
+          ARTIFACT_NAME: ${{ inputs.artifact-name || 'windows-preview-packages' }}
+        run: |
+          $label = $env:VERSION_LABEL -replace '^v', ''
+          if ($label -notmatch '^[0-9A-Za-z][0-9A-Za-z.+-]*$') { throw "Invalid version label: $label" }
+          "version-label=$label" >> $env:GITHUB_OUTPUT
+          "artifact-name=$env:ARTIFACT_NAME" >> $env:GITHUB_OUTPUT
+          if ($env:WINDOWS_SIGNING_CERTIFICATE) {
+            Write-Host 'Code signing: enabled'
+          } else {
+            Write-Host '::notice::Code signing certificate not configured; packages will be unsigned.'
+          }
       - uses: ilammy/msvc-dev-cmd@v1
       - uses: jurplel/install-qt-action@v4
         with:
@@ -28,8 +73,10 @@ jobs:
           wix extension add --global WixToolset.Firewall.wixext/4.0.6
       - name: Configure
         shell: pwsh
+        env:
+          VERSION_LABEL: ${{ steps.meta.outputs.version-label }}
         run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" -DVCPKG_MANIFEST_MODE=ON -DVCPKG_TARGET_TRIPLET=x64-windows -DVCPKG_QT=OFF -DDSH_CUSTOM_BRIDGE=ON -DPACKAGE_VERSION_LABEL=0.1.0-alpha.2 -DBUILD_TESTS=OFF -DBUILD_INSTALLER=ON
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" -DVCPKG_MANIFEST_MODE=ON -DVCPKG_TARGET_TRIPLET=x64-windows -DVCPKG_QT=OFF -DDSH_CUSTOM_BRIDGE=ON "-DPACKAGE_VERSION_LABEL=$env:VERSION_LABEL" -DBUILD_TESTS=OFF -DBUILD_INSTALLER=ON
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build
         shell: pwsh
@@ -39,17 +86,41 @@ jobs:
       - name: Package
         shell: pwsh
         run: |
+          # When a certificate is configured, the CPack pre-build script signs the staged
+          # executables and DLLs before they are packed into the ZIP and MSI.
           cmake --build build --target package
           if ($LASTEXITCODE -ne 0) {
             Get-ChildItem build/_CPack_Packages -Filter wix.log -Recurse | ForEach-Object { Get-Content $_.FullName }
             exit 1
           }
           if (-not (Get-ChildItem build/*.msi)) { throw 'No MSI was generated' }
+      - name: Sign installer
+        if: env.WINDOWS_SIGNING_CERTIFICATE != ''
+        shell: pwsh
+        run: |
+          $msi = @(Get-ChildItem build/*.msi | ForEach-Object FullName)
+          ./deploy/windows/Invoke-CodeSigning.ps1 -Required @msi
+      - name: Generate SHA-256 checksums
+        shell: pwsh
+        run: |
+          $lines = Get-ChildItem build/*.msi, build/*.zip | Sort-Object Name | ForEach-Object {
+            '{0}  {1}' -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $_.Name
+          }
+          # LF line endings so that `sha256sum -c` works on Linux and macOS as well.
+          [System.IO.File]::WriteAllText((Join-Path $PWD 'build/SHA256SUMS.txt'), (($lines -join "`n") + "`n"))
+          Get-Content build/SHA256SUMS.txt
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            build/*.msi
+            build/*.zip
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: windows-preview-packages
+          name: ${{ steps.meta.outputs.artifact-name }}
           path: |
             build/*.msi
             build/*.zip
+            build/SHA256SUMS.txt
           if-no-files-found: error

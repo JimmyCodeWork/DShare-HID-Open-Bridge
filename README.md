@@ -28,6 +28,17 @@ DShare-HID Open Bridge 是 [DShare-HID](https://github.com/lockekk/dshare-hid) �
 - [韌體、金鑰與燒錄說明](firmware/open-bridge/README.md)
 - [上游桌面程式建置說明](docs/dev/build.md)
 
+### 下載驗證與瀏覽器警告
+
+Windows 安裝程式與可攜版由 GitHub Actions 從標記版本建置後發布到 [Releases](https://github.com/JimmyCodeWork/DShare-HID-Open-Bridge/releases)，並附上 `SHA256SUMS.txt` 與建置來源證明（build provenance attestation）。測試版目前**尚未進行程式碼簽章**，Chrome 或 Windows SmartScreen 可能顯示「不常下載的檔案」等警告。請只從本專案的 Releases 頁面下載，並先確認檔案完整：
+
+```powershell
+Get-FileHash .\<檔案> -Algorithm SHA256
+gh attestation verify .\<檔案> --repo JimmyCodeWork/DShare-HID-Open-Bridge
+```
+
+雜湊值應與同一版本 `SHA256SUMS.txt` 中的紀錄相符。簽章設定與驗證細節請見 [Windows 程式碼簽章說明](docs/windows-code-signing.md)。
+
 設定工具目前需要 Python、PlatformIO、`cryptography` 和 `pyserial`。私鑰會被放進韌體與板子的快閃記憶體；設定時產生的臨時檔會在正常結束或可處理的錯誤後刪除，但一般刪除不保證資料無法復原。請勿公開分享私鑰或含私鑰的韌體與建置產物。
 
 ### 來源與授權
@@ -41,6 +52,8 @@ DShare-HID Open Bridge is an independent fork of [DShare-HID](https://github.com
 **This is an experimental prerelease, not a verified working product.** The full Windows desktop build, hardware flashing, USB handshake, iPad pairing, and keyboard/mouse operation have not yet been verified. The [alpha release](https://github.com/JimmyCodeWork/DShare-HID-Open-Bridge/releases/tag/v0.1.0-alpha.1) contains source code only; there is no verified installer or ready-to-use firmware.
 
 The prototype includes a single-profile ESP32-C3 firmware, device-key provisioning, runtime public-key loading, and a desktop setup dialog. Cross-compilation with a test key, host-side protocol tests, and simulated dialog tests have passed. See the [development guide](docs/custom-bridge.md) and [firmware instructions](firmware/open-bridge/README.md) for prerequisites, security limitations, and testing status.
+
+Windows installers and portable builds are built by GitHub Actions from release tags and published on the [Releases](https://github.com/JimmyCodeWork/DShare-HID-Open-Bridge/releases) page, together with `SHA256SUMS.txt` and a build provenance attestation. Prerelease builds are **not yet code-signed**, so Chrome or Windows SmartScreen may warn that the file is uncommon. Download only from this repository's Releases page and verify the file first with `Get-FileHash` and `gh attestation verify`; see [Windows code signing and release verification](docs/windows-code-signing.md).
 
 The setup does not enable Secure Boot or Flash Encryption or burn eFuses that restrict reflashing. A firmware build contains its private key; keep the board and build artifacts private. Temporary files are deleted on normal completion or handled errors, but ordinary deletion does not guarantee secure erasure.
 
