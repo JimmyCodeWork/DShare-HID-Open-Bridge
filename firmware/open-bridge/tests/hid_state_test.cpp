@@ -21,6 +21,9 @@ int main()
   assert(event(2, {0, 4})); assert(reports.back().bytes[2] == 0 && reports.back().bytes[3] == 5);
   assert(event(4, {1})); assert(event(3, {0xfe, 0xff, 0x01, 0x00}));
   assert((reports.back().bytes == std::vector<uint8_t>{1, 0xfe, 0xff, 1, 0, 0}));
+  assert(event(4, {3})); assert(reports.back().bytes[0] == 3);
+  assert(event(4, {2})); assert(reports.back().bytes[0] == 7);
+  assert(event(5, {3})); assert(reports.back().bytes[0] == 5);
   assert(event(6, {0xff})); assert(reports.back().bytes[5] == 0xff);
   assert(event(7, {0xe9, 0})); assert(reports.back().bytes[0] == 0xe9);
   assert(!event(3, {1}));

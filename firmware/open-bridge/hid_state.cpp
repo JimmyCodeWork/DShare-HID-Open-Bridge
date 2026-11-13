@@ -53,8 +53,14 @@ bool HidState::handle(const uint8_t *p, size_t n)
           static_cast<int16_t>(uint16_t(d[2]) | (uint16_t(d[3]) << 8)), 0);
     return true;
   case 4: case 5:
-    if (p[3] != 1) return false;
-    if (p[2] == 4) buttons_ |= d[0]; else buttons_ &= static_cast<uint8_t>(~d[0]);
+    // Desktop sends Deskflow button IDs: left=1, middle=2, right=3.
+    // HID uses a bitmap with right before middle.
+    if (p[3] != 1 || d[0] < 1 || d[0] > 5) return false;
+    {
+      static constexpr uint8_t masks[] = {0, 1, 4, 2, 8, 16};
+      const uint8_t mask = masks[d[0]];
+      if (p[2] == 4) buttons_ |= mask; else buttons_ &= static_cast<uint8_t>(~mask);
+    }
     mouse(0, 0, 0); return true;
   case 6:
     if (p[3] != 1) return false;
