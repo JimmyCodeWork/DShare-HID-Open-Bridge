@@ -56,7 +56,13 @@ target_link_libraries(
 if(WIN32)
   target_link_libraries(
     net
-    PUBLIC OpenSSL::applink
     PRIVATE Crypt32 ws2_32
   )
+  # FindOpenSSL only defines OpenSSL::applink when the distribution ships openssl/applink.c.
+  if(TARGET OpenSSL::applink)
+    target_link_libraries(net PUBLIC OpenSSL::applink)
+  else()
+    message(WARNING "OpenSSL::applink is unavailable; OpenSSL may crash if it is handed FILE* "
+                    "handles from a different C runtime.")
+  endif()
 endif()

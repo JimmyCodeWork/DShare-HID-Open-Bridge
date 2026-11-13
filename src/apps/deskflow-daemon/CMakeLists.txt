@@ -34,6 +34,8 @@ if(WIN32)
     ${libs}
     Qt6::Core)
 
+  dsh_deploy_runtime_dlls(${target})
+
   # Only install the daemon if specifically requested (not included in default dshare-hid MSI)
   option(INSTALL_DAEMON "Install the daemon executable" OFF)
   if(INSTALL_DAEMON)

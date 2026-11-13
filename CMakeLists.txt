@@ -194,6 +194,8 @@ if(UNIX AND NOT APPLE)
     find_package(Qt6 ${REQUIRED_QT_VERSION} REQUIRED COMPONENTS DBus)
 endif()
 
+include(cmake/WindowsRuntime.cmake)
+
 # Define the location of Qt deployment tool
 if(WIN32)
   if (CMAKE_BUILD_TYPE STREQUAL "Debug" AND VCPKG_QT)

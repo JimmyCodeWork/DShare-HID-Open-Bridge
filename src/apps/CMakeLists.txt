@@ -44,6 +44,11 @@ if(WIN32)
   elseif(DEFINED OPENSSL_ROOT_DIR AND EXISTS "${OPENSSL_ROOT_DIR}/bin")
     list(APPEND WIN32_RUNTIME_DEPENDENCY_SET_ARGS DIRECTORIES "${OPENSSL_ROOT_DIR}/bin")
   endif()
+  # Prebuilt Qt is usually not on PATH, so tell the dependency resolver where its DLLs are.
+  dsh_qt_bin_dir(_dsh_qt_bin)
+  if(_dsh_qt_bin)
+    list(APPEND WIN32_RUNTIME_DEPENDENCY_SET_ARGS DIRECTORIES "${_dsh_qt_bin}")
+  endif()
 endif()
 
 add_subdirectory(deskflow-core)

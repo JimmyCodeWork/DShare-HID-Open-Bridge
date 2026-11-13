@@ -2,34 +2,40 @@ name: Windows installer smoke test
 on:
   push:
     branches: [test/windows-installer]
+  workflow_run:
+    workflows: [Windows preview build]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      run-id:
+        description: Run ID of a "Windows preview build" run. Defaults to the latest successful run.
+        type: string
+        default: ''
 permissions:
   actions: read
   contents: read
 jobs:
   install:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: windows-2022
     timeout-minutes: 30
     steps:
-      - name: Wait for the preview package
+      - name: Download the preview package
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ inputs.run-id || github.event.workflow_run.id }}
         run: |
-          $repo = 'JimmyCodeWork/DShare-HID-Open-Bridge'
-          $run = '43462140592'
-          $deadline = (Get-Date).AddMinutes(20)
-          do {
-            $data = gh run view $run --repo $repo --json status,conclusion | ConvertFrom-Json
-            if ($data.status -eq 'completed') {
-              if ($data.conclusion -ne 'success') { throw "Package build failed: $($data.conclusion)" }
-              break
-            }
-            Start-Sleep -Seconds 20
-          } while ((Get-Date) -lt $deadline)
-          if ($data.status -ne 'completed') { throw 'Timed out waiting for package build' }
-          gh run download $run --repo $repo --name windows-preview-packages --dir packages
+          $run = $env:RUN_ID
+          if (-not $run) {
+            $run = gh run list --workflow windows-preview.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId'
+            if (-not $run) { throw 'No successful Windows preview build found' }
+          }
+          Write-Host "Testing packages from run $run"
+          gh run download $run --name windows-preview-packages --dir packages
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Install and launch
+      - name: Install
         shell: pwsh
         run: |
           $msi = Get-ChildItem packages/*.msi | Select-Object -First 1
@@ -37,6 +43,24 @@ jobs:
           $log = Join-Path $env:RUNNER_TEMP 'openbridge-install.log'
           $installer = Start-Process msiexec.exe -ArgumentList @('/i', ('"' + $msi.FullName + '"'), '/qn', '/norestart', '/l*v', ('"' + $log + '"')) -Wait -PassThru
           if ($installer.ExitCode -ne 0) { Get-Content $log -Tail 100; throw "Installer failed: $($installer.ExitCode)" }
+      - name: Check runtime files
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:ProgramFiles 'DShare-HID Open Bridge'
+          # Qt, the Qt platform and SVG image plugins (the UI icons are SVG) and OpenSSL 3.
+          $required = 'dshare-hid.exe', 'Qt6Core.dll', 'Qt6Widgets.dll', 'Qt6Network.dll',
+                      'qwindows.dll', 'qsvg.dll', 'libcrypto-3-x64.dll', 'libssl-3-x64.dll'
+          $missing = foreach ($name in $required) {
+            if (-not (Get-ChildItem $dir -Recurse -Filter $name -ErrorAction SilentlyContinue)) { $name }
+          }
+          if ($missing) {
+            Get-ChildItem $dir -Recurse | Select-Object -ExpandProperty FullName
+            throw "Missing from the installation: $($missing -join ', ')"
+          }
+          Write-Host 'All required runtime files are installed.'
+      - name: Launch
+        shell: pwsh
+        run: |
           $exe = Join-Path $env:ProgramFiles 'DShare-HID Open Bridge/dshare-hid.exe'
           if (-not (Test-Path $exe)) { throw "Installed executable missing: $exe" }
           $app = Start-Process $exe -PassThru
