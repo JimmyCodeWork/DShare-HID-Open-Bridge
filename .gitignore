@@ -65,3 +65,8 @@ build_flatpak
 **/CLAUDE.[mM][dD]
 
 __pycache__
+
+# Added 2026-11-13: local bridge identity (includes private signing material).
+/.local/
+/build-custom/
+/firmware/open-bridge/.pio/

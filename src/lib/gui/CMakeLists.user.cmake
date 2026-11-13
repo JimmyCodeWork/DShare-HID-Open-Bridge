@@ -33,6 +33,10 @@ set(bridge_sources
     layout/DisplayMonitors.h
 )
 
+if(DSH_CUSTOM_BRIDGE)
+  target_sources(${target} PRIVATE dialogs/OpenBridgeSetupDialog.cpp dialogs/OpenBridgeSetupDialog.h)
+endif()
+
 set(AUTO_AUTH_KEY_PATH "${CMAKE_SOURCE_DIR}/firmware/build_upgrade/deskflow_auth_key.inc")
 if(EXISTS "${AUTO_AUTH_KEY_PATH}")
   message(STATUS "Integrating custom auth key from: ${AUTO_AUTH_KEY_PATH}")

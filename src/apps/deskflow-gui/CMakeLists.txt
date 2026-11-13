@@ -41,6 +41,10 @@ add_executable(${target} WIN32 MACOSX_BUNDLE
   deskflow-gui.cpp
 )
 
+if(DSH_CUSTOM_BRIDGE)
+  target_sources(${target} PRIVATE ../res/open-bridge.qrc)
+endif()
+
 if(APPLE)
   set_target_properties(${target} PROPERTIES OUTPUT_NAME "DShare-HID")
 else()

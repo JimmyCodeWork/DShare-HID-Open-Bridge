@@ -9,6 +9,8 @@
 #include "common/LogLevel.h"
 
 #include <QByteArray>
+#include <QDir>
+#include <QFile>
 #include <QRandomGenerator>
 #include <algorithm>
 #include <array>
@@ -109,6 +111,7 @@ const uint8_t kHelloLabel[] = {'D', 'F', 'H', 'E', 'L', 'L', 'O'};
 const uint8_t kAckLabel[] = {'D', 'F', 'A', 'C', 'K'};
 
 // ECDSA Public Key (X || Y)
+#ifndef DSH_CUSTOM_BRIDGE_RUNTIME_KEYS
 static const uint8_t kDevicePublicKey[] = {
 #ifdef DESKFLOW_USE_GENERATED_PUBLIC_KEY
 #include "deskflow_public_key.inc"
@@ -120,6 +123,7 @@ static const uint8_t kDevicePublicKey[] = {
     0x6a, 0x65, 0x7c, 0xe4, 0x99, 0x62, 0x60, 0xb2, 0xcf, 0xc1, 0xb2, 0x2d, 0x7c, 0x64, 0xf4, 0xc2, 0x74 // Y part 2
 #endif
 };
+#endif
 
 std::string hexDump(const uint8_t *data, size_t length, size_t maxBytes = 64)
 {
@@ -175,7 +179,8 @@ void appendDerInteger(std::vector<uint8_t> &der, const uint8_t *data, size_t len
 }
 
 bool verifySignature(
-    const uint8_t *hostNonce, const uint8_t *deviceNonce, const uint8_t *ackCore, const uint8_t *signature
+    const uint8_t *hostNonce, const uint8_t *deviceNonce, const uint8_t *ackCore, const uint8_t *signature,
+    const uint8_t *pubKeyData
 )
 {
   deskflow::platform::initializeOpenSSL();
@@ -190,8 +195,7 @@ bool verifySignature(
   // 2. Load Public Key (Via DER SubjectPublicKeyInfo)
   // Construct the ASN.1 structure manually to avoid provider parameter issues.
   // Sequence (id-ecPublicKey, prime256v1), BitString (0x04 | X | Y)
-  const uint8_t *pubKeyData = kDevicePublicKey;
-  if (sizeof(kDevicePublicKey) != 65 || kDevicePublicKey[0] != 0x04) {
+  if (pubKeyData[0] != 0x04) {
     LOG_ERR("CDC: Invalid public key format (expected 65 bytes with 0x04 prefix)");
     return false;
   }
@@ -268,6 +272,26 @@ bool verifySignature(
   }
 
   return true;
+}
+
+bool verifyDeviceSignature(const uint8_t *hostNonce, const uint8_t *deviceNonce, const uint8_t *ackCore,
+                           const uint8_t *signature)
+{
+#ifdef DSH_CUSTOM_BRIDGE_RUNTIME_KEYS
+  // Public keys are provisioned per device; there is deliberately no fallback key.
+  const QDir trustDir(QDir::home().filePath(QStringLiteral(".dshare-hid/bridge-keys")));
+  const auto entries = trustDir.entryList({QStringLiteral("*.bin")}, QDir::Files | QDir::Readable);
+  for (const auto &entry : entries) {
+    QFile file(trustDir.filePath(entry));
+    if (!file.open(QIODevice::ReadOnly) || file.size() != 65) continue;
+    const QByteArray key = file.readAll();
+    if (key.size() == 65 && verifySignature(hostNonce, deviceNonce, ackCore, signature,
+                                            reinterpret_cast<const uint8_t *>(key.constData()))) return true;
+  }
+  return false;
+#else
+  return sizeof(kDevicePublicKey) == 65 && verifySignature(hostNonce, deviceNonce, ackCore, signature, kDevicePublicKey);
+#endif
 }
 } // namespace
 
@@ -521,7 +545,7 @@ bool CdcTransport::performHandshake(bool allowInsecure)
 
       // Verify tag (only if not in insecure mode and auth was requested)
       if (!allowInsecure) {
-        if (!verifySignature(m_hostNonce.data(), deviceNonce, ackCore, ackTag)) {
+        if (!verifyDeviceSignature(m_hostNonce.data(), deviceNonce, ackCore, ackTag)) {
           m_lastError = "Handshake authentication failed.";
           LOG_ERR("CDC: %s", m_lastError.c_str());
           return false;
