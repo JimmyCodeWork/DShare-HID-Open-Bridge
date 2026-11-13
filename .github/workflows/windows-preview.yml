@@ -1,0 +1,55 @@
+name: Windows preview build
+on:
+  workflow_dispatch:
+  push:
+    branches: [build/windows-preview]
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: windows-2022
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ilammy/msvc-dev-cmd@v1
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.7.3'
+          arch: win64_msvc2019_64
+          cache: true
+      - name: Install WiX 4
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 4.0.6
+          wix extension add --global WixToolset.UI.wixext/4.0.6
+          wix extension add --global WixToolset.Util.wixext/4.0.6
+          wix extension add --global WixToolset.Firewall.wixext/4.0.6
+      - name: Configure
+        shell: pwsh
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" -DVCPKG_MANIFEST_MODE=ON -DVCPKG_TARGET_TRIPLET=x64-windows -DVCPKG_QT=OFF -DDSH_CUSTOM_BRIDGE=ON -DPACKAGE_VERSION_LABEL=0.1.0-alpha.2 -DBUILD_TESTS=OFF -DBUILD_INSTALLER=ON
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build
+        shell: pwsh
+        run: |
+          cmake --build build --parallel 2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Package
+        shell: pwsh
+        run: |
+          cmake --build build --target package
+          if ($LASTEXITCODE -ne 0) {
+            Get-ChildItem build/_CPack_Packages -Filter wix.log -Recurse | ForEach-Object { Get-Content $_.FullName }
+            exit 1
+          }
+          if (-not (Get-ChildItem build/*.msi)) { throw 'No MSI was generated' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-preview-packages
+          path: |
+            build/*.msi
+            build/*.zip
+          if-no-files-found: error
