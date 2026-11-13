@@ -12,7 +12,10 @@ else()
 endif()
 
 # Handle optional custom public key for CDC Transport (ECDSA)
-if(DESKFLOW_CDC_PUBLIC_KEY)
+if(DSH_CUSTOM_BRIDGE)
+   message(STATUS "Using runtime trust store for custom bridge device keys")
+   add_compile_definitions(DSH_CUSTOM_BRIDGE_RUNTIME_KEYS)
+elseif(DESKFLOW_CDC_PUBLIC_KEY)
    message(STATUS "Using custom public key for CDC Transport: ${DESKFLOW_CDC_PUBLIC_KEY}")
 
    if(NOT EXISTS "${DESKFLOW_CDC_PUBLIC_KEY}")

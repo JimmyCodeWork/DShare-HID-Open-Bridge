@@ -29,8 +29,8 @@ include("${REPO}/src/CMakeLists.user.cmake")
 if(HAS_ESP32_HID_TOOLS)
   message(FATAL_ERROR "The installed vendor submodule was loaded despite the build mode")
 endif()
-if(DSH_CUSTOM_BRIDGE AND NOT TARGET generate_public_key)
-  message(FATAL_ERROR "The custom public-key generation target was not configured")
+if(DSH_CUSTOM_BRIDGE AND TARGET generate_public_key)
+  message(FATAL_ERROR "Custom bridge must load keys at runtime")
 endif()
 ]=])
 
@@ -51,13 +51,6 @@ function(check_case name expect_success expected_text)
   message(STATUS "PASS: ${name}")
 endfunction()
 
-check_case(missing FALSE "requires your own device public key"
-  "-DDESKFLOW_CDC_PUBLIC_KEY=${_fixtures}/missing.bin")
-check_case(directory FALSE "requires your own device public key"
-  "-DDESKFLOW_CDC_PUBLIC_KEY=${_fixtures}")
-check_case(short FALSE "must be 65 bytes" "-DDESKFLOW_CDC_PUBLIC_KEY=${_fixtures}/short.bin")
-check_case(prefix FALSE "must be 65 bytes" "-DDESKFLOW_CDC_PUBLIC_KEY=${_fixtures}/bad-prefix.bin")
-check_case(valid TRUE "" "-DDESKFLOW_CDC_PUBLIC_KEY=${_fixtures}/valid.bin")
-check_case(vendor_forced_off TRUE "" "-DDESKFLOW_CDC_PUBLIC_KEY=${_fixtures}/valid.bin"
-  -DDSH_VENDOR_FIRMWARE_TOOLS=ON)
+check_case(runtime_keys TRUE "" )
+check_case(vendor_forced_off TRUE "" -DDSH_VENDOR_FIRMWARE_TOOLS=ON)
 check_case(upstream_opt_out TRUE "" -DDSH_CUSTOM_BRIDGE=OFF -DDSH_VENDOR_FIRMWARE_TOOLS=OFF)

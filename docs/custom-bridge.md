@@ -7,7 +7,7 @@
 ## 目前狀態
 
 - 已加入預設開啟的 `DSH_CUSTOM_BRIDGE` 建置選項。
-- 自製橋接模式要求提供自己的 P-256 公鑰，不會退回原作者的內建公鑰。
+- 自製橋接模式從使用者目錄讀取 P-256 公鑰，不會退回原作者的內建公鑰。
 - 自製模式不載入 `esp32-hid-tools` 子模組，因此不建置其下載、燒錄、付款介面。
 - 已加入 ESP32-C3 實驗版韌體，使用測試金鑰交叉編譯通過；尚未完成桌面整體建置、燒錄或 iPad 實機驗證。
 
@@ -15,44 +15,22 @@
 
 韌體的 Windows 建置及燒錄步驟見 [韌體說明](../firmware/open-bridge/README.md)。
 
-## 產生自己的裝置身分
+## 裝置身分與桌面建置
 
-在專案根目錄以 PowerShell 7 執行：
+先依 [上游建置說明](dev/build.md)準備桌面程式的依賴套件，再以
+`-DDSH_CUSTOM_BRIDGE=ON` 建置。桌面程式不再需要編譯時提供公鑰；執行時從
+使用者家目錄 `.dshare-hid/bridge-keys/` 讀取受信任的 65-byte P-256 公鑰。
+該目錄沒有有效公鑰時，安全握手會失敗，不會退回原作者公鑰。
 
-```powershell
-pwsh -File devtools/New-BridgeIdentity.ps1
-```
-
-檔案會放在 `.local/bridge-keys/`：
-
-| 檔案 | 用途 |
-|---|---|
-| `private-key.pem` | 自製韌體的 P-256 私鑰，PKCS#8 格式；不可提交 Git 或上傳 |
-| `public-key.bin` | 桌面端使用的 65-byte 未壓縮公鑰：`04 + X(32) + Y(32)` |
-| `public-key.pem` | 公鑰的 SubjectPublicKeyInfo PEM 格式，供驗證與檢查 |
-
-工具拒絕覆寫既有目錄；輪替金鑰請指定另一個 `-OutputDirectory`。
-`.local/` 已由 Git 忽略，身分目錄也有獨立 `.gitignore`。私鑰目前以未加密 PEM
-儲存在本機，請維持檔案的適當存取權限。每個橋接板可以使用不同身分。
-
-## 桌面建置設定
-
-先依 [上游建置說明](dev/build.md)準備 CMake、C++20 編譯器、Qt 6.7+、OpenSSL 3+
-及各平台相依套件，再將下列參數加入原本的 configure 指令：
-
-```text
--DDSH_CUSTOM_BRIDGE=ON
--DDESKFLOW_CDC_PUBLIC_KEY=<absolute-path-to-public-key.bin>
-```
-
-未指定公鑰路徑時，預設使用本專案 `.local/bridge-keys/public-key.bin`。
-不要把 `private-key.pem` 傳給這個參數。設定檢查會拒絕長度或前綴錯誤的檔案；
-實際曲線座標與簽章的有效性仍由 OpenSSL 在執行時驗證。
+[韌體說明](../firmware/open-bridge/README.md)提供目前的命令列設定流程：每次
+產生新金鑰並燒錄後，先以新公鑰驗證板子的簽章，再依裝置序號原子替換該板子的
+公鑰。這個流程尚未整合成桌面安裝介面，也尚未經實機驗證。私鑰只放在臨時建置
+目錄和板子；正常退出時刪除臨時目錄，但無法保證儲存媒體上的資料已安全抹除。
 
 如需編譯未修改的上游模式，使用獨立建置目錄並明確指定
-`-DDSH_CUSTOM_BRIDGE=OFF`。這不是繞過原廠韌體授權；原廠韌體仍受其自身條款限制。
+`-DDSH_CUSTOM_BRIDGE=OFF`。原廠韌體仍受其自身條款限制。
 
-## 自製韌體需要實作的公開介面
+## 自製韌體使用的公開介面
 
 協定的權威來源是 `src/lib/platform/bridge/CdcTransport.cpp`、`CdcTransport.h`
 及 `HidFrame.cpp`，下面僅整理這個版本的必要項目。
@@ -83,6 +61,5 @@ pwsh -File devtools/Test-BridgeIdentity.ps1
 cmake -P devtools/Test-CustomBridge.cmake
 ```
 
-第一項會驗證產生的私鑰能簽署、匯出的公鑰能驗證、錯誤訊息無法通過驗證，
-並確認再次執行不會覆寫既有身分。第二項測試自製模式的設定守門條件。
+第一項測試舊版手動身分工具。第二項確認自製模式使用執行時金鑰且不載入原廠工具。
 這些測試不代表桌面程式已編譯或橋接硬體已驗證。

@@ -16,26 +16,29 @@ the bridge, and USB traffic is not encrypted.
 
 Use a freely flashable ESP32-C3 SuperMini with a data-capable USB cable. Do not
 use a board whose boot security was irreversibly configured for vendor firmware.
-Install Python, PlatformIO Core (`py -m pip install platformio`), and PowerShell
-7. From the repository root in PowerShell:
+Install Python and dependencies (`py -m pip install platformio cryptography pyserial`).
+From the repository root in PowerShell, replace COM3 with the actual port:
 
 ```powershell
-# Only if this directory does not already exist; never overwrite your identity.
-pwsh -File devtools/New-BridgeIdentity.ps1
-$env:DSH_BRIDGE_PRIVATE_KEY = (Resolve-Path .local/bridge-keys/private-key.pem).Path
-py -m platformio run -d firmware/open-bridge
-# Confirm the COM port first; replace COM3 with the actual port.
-py -m platformio run -d firmware/open-bridge -t upload --upload-port COM3
+py firmware/open-bridge/provision.py --port COM3
 ```
 
-The desktop must be built with the matching `.local/bridge-keys/public-key.bin`
-as described in [custom bridge development](../../docs/custom-bridge.md).
-The build embeds the private key in the generated binary and the ESP32 flash;
-keep the binary, build directory, and device private. Do not upload those files
-or the key. A copied key can impersonate the bridge. The board is not configured
-with flash encryption by these instructions.
+The script makes a fresh key, builds and flashes in a temporary directory,
+verifies the board's signature, and saves the public key to
+`%USERPROFILE%\.dshare-hid\bridge-keys\Open-<serial>.bin` only after verification.
+Running it again rotates that board's key; the previous public key remains until
+the new handshake succeeds. This is currently a command-line workflow, not a
+desktop setup screen. Close the bridge client before provisioning so the serial
+port is free. If the flash succeeds but verification fails, run the command again;
+the desktop retains its old key and cannot authenticate that new firmware.
 
-After flashing, restart the board, pair the iPad with “Open Bridge”, and test
+The build embeds the private key in the generated binary and the ESP32 flash.
+The temporary directory is deleted on normal exit and handled errors, but an
+abrupt shutdown can leave it behind and ordinary deletion does not guarantee
+secure erasure. A copied key can impersonate the bridge. Flash encryption and
+secure boot are not enabled by these instructions.
+
+After flashing, pair the iPad with “Open Bridge”, and test
 the matching custom desktop build. The precise pairing and first-use steps still
 need to be established through a hardware test. If flashing fails, a SuperMini
 may require holding BOOT while connecting or resetting; avoid changing eFuses.
