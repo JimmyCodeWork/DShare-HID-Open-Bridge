@@ -29,7 +29,7 @@ jobs:
       - name: Configure
         shell: pwsh
         run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" -DVCPKG_MANIFEST_MODE=ON -DVCPKG_TARGET_TRIPLET=x64-windows -DVCPKG_QT=OFF -DDSH_CUSTOM_BRIDGE=ON -DBUILD_TESTS=OFF -DBUILD_INSTALLER=ON
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" -DVCPKG_MANIFEST_MODE=ON -DVCPKG_TARGET_TRIPLET=x64-windows -DVCPKG_QT=OFF -DDSH_CUSTOM_BRIDGE=ON -DPACKAGE_VERSION_LABEL=0.1.0-alpha.2 -DBUILD_TESTS=OFF -DBUILD_INSTALLER=ON
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build
         shell: pwsh

@@ -84,6 +84,14 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/.git)
   endif()
 endif()
 
+# Give the experimental fork its own Windows product version.
+if(DSH_CUSTOM_BRIDGE)
+  set(DESKFLOW_VERSION_MAJOR 0)
+  set(DESKFLOW_VERSION_MINOR 1)
+  set(DESKFLOW_VERSION_PATCH 0)
+  set(DESKFLOW_VERSION_TWEAK 2)
+endif()
+
 #generate vcpkg file if needed
 if(WIN32)
     if(VCPKG_QT)
@@ -103,6 +111,9 @@ project(
 
 # Define Additional "PROJECT" vars for packaging and metadata
 set(CMAKE_PROJECT_PROPER_NAME "DShare-HID")
+if(DSH_CUSTOM_BRIDGE)
+  set(CMAKE_PROJECT_PROPER_NAME "DShare-HID Open Bridge")
+endif()
 set(CMAKE_PROJECT_VENDOR "${CMAKE_PROJECT_PROPER_NAME} Devs")
 set(CMAKE_PROJECT_COPYRIGHT "(C) 2024-2026 ${CMAKE_PROJECT_VENDOR}")
 set(CMAKE_PROJECT_CONTACT "${CMAKE_PROJECT_PROPER_NAME} <dshare-hid@gmail.com>")
