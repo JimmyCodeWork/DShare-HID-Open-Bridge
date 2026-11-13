@@ -25,6 +25,11 @@ permissions:
   contents: read
   id-token: write
   attestations: write
+concurrency:
+  # A newer push to the same ref supersedes an in-progress preview build. Release builds are
+  # called from windows-release.yml, which has its own non-cancelling concurrency group.
+  group: windows-preview-${{ github.workflow }}-${{ inputs.ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/') }}
 jobs:
   package:
     runs-on: windows-2022
@@ -37,6 +42,11 @@ jobs:
       WINDOWS_SIGNING_CERTIFICATE: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE }}
       WINDOWS_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE_PASSWORD }}
       WINDOWS_SIGNING_TIMESTAMP_URL: ${{ vars.WINDOWS_SIGNING_TIMESTAMP_URL }}
+      # vcpkg binary cache: prebuilt dependencies (OpenSSL) are restored instead of rebuilt.
+      VCPKG_BINARY_CACHE: ${{ github.workspace }}\.cache\vcpkg-binary
+      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}\.cache\vcpkg-binary,readwrite
+      # Compiler cache for the project's own sources.
+      SCCACHE_GHA_ENABLED: 'true'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -64,6 +74,22 @@ jobs:
           version: '6.7.3'
           arch: win64_msvc2019_64
           cache: true
+      - name: Restore vcpkg binary cache
+        uses: actions/cache@v4
+        with:
+          path: .cache/vcpkg-binary
+          # vcpkg validates every package by its ABI hash, so a restored cache from an older
+          # key is safe: packages that no longer match are simply rebuilt and added.
+          key: vcpkg-${{ runner.os }}-x64-windows-${{ hashFiles('cmake/vcpkg.json.in') }}-${{ github.run_id }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-x64-windows-${{ hashFiles('cmake/vcpkg.json.in') }}-
+            vcpkg-${{ runner.os }}-x64-windows-
+      - name: Set up sccache
+        uses: mozilla-actions/sccache-action@v0.0.9
+      - name: Prepare vcpkg binary cache
+        shell: pwsh
+        # vcpkg requires the cache directory to exist, including on a cache miss.
+        run: New-Item -ItemType Directory -Force $env:VCPKG_BINARY_CACHE | Out-Null
       - name: Install WiX 4
         shell: pwsh
         run: |
@@ -76,13 +102,14 @@ jobs:
         env:
           VERSION_LABEL: ${{ steps.meta.outputs.version-label }}
         run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" -DVCPKG_MANIFEST_MODE=ON -DVCPKG_TARGET_TRIPLET=x64-windows -DVCPKG_QT=OFF -DDSH_CUSTOM_BRIDGE=ON "-DPACKAGE_VERSION_LABEL=$env:VERSION_LABEL" -DBUILD_TESTS=OFF -DBUILD_INSTALLER=ON
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" -DVCPKG_MANIFEST_MODE=ON -DVCPKG_TARGET_TRIPLET=x64-windows -DVCPKG_QT=OFF -DDSH_CUSTOM_BRIDGE=ON "-DPACKAGE_VERSION_LABEL=$env:VERSION_LABEL" -DBUILD_TESTS=OFF -DBUILD_INSTALLER=ON -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build
         shell: pwsh
         run: |
-          cmake --build build --parallel 2
+          cmake --build build
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          sccache --show-stats
       - name: Package
         shell: pwsh
         run: |
