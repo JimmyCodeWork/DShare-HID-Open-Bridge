@@ -5,7 +5,7 @@
 DShare-HID Open Bridge is an independent fork of [DShare-HID](https://github.com/lockekk/dshare-hid), which is itself derived from [Deskflow](https://github.com/deskflow/deskflow). It keeps the desktop keyboard and mouse sharing architecture and develops its own ESP32-C3 Bluetooth HID bridge firmware. It is not an official upstream release.
 
 > [!WARNING]
-> **This is an experimental prerelease, not a verified working product.** The full Windows desktop build, ESP32 flashing, the USB handshake, iPad pairing and actual keyboard and mouse operation have not been verified yet. Do not treat this version as a stable product.
+> **This is an experimental prerelease, not a verified working product.** CI builds the Windows installer and portable package, and an automated check installs and launches the application on a CI runner. It has not yet been tested on a real computer, and ESP32 flashing, the USB handshake, iPad pairing and actual keyboard and mouse operation have not been verified. Do not treat this version as a stable product.
 
 ## What it provides
 

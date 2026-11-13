@@ -5,7 +5,7 @@
 DShare-HID Open Bridge 是 [DShare-HID](https://github.com/lockekk/dshare-hid) 的獨立 fork，而 DShare-HID 源自 [Deskflow](https://github.com/deskflow/deskflow)。本專案沿用其桌面鍵鼠共享架構，並自行開發 ESP32-C3 藍牙 HID 橋接韌體。本專案並非上游作者發布的官方版本。
 
 > [!WARNING]
-> **目前為實驗性預覽版，尚未驗證可正常使用。** Windows 桌面程式的完整建置、ESP32 燒錄、USB 握手、iPad 配對，以及實際的鍵鼠操作均尚未驗證。請勿將此版本視為穩定產品。
+> **目前為實驗性預覽版，尚未驗證可正常使用。** CI 已能建置 Windows 安裝程式與可攜版，並會在 CI 環境中自動安裝及啟動程式進行檢查，但尚未在實體電腦上實測；ESP32 燒錄、USB 握手、iPad 配對，以及實際的鍵鼠操作也均尚未驗證。請勿將此版本視為穩定產品。
 
 ## 功能概覽
 
