@@ -211,6 +211,8 @@ set(BRIDGE_SOURCES
   bridge/CdcTransport.h
   bridge/HidFrame.cpp
   bridge/HidFrame.h
+  bridge/PointerHoming.cpp
+  bridge/PointerHoming.h
   DisplayRects.cpp # DShare-HID: layout
   DisplayRects.h # DShare-HID: layout
   PortalBarriers.cpp # DShare-HID: layout

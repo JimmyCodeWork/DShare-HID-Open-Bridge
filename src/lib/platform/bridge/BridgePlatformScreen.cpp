@@ -18,6 +18,7 @@
 #include <cstring>
 #include <iomanip>
 #include <sstream>
+#include <thread>
 #include <utility>
 
 namespace deskflow::bridge {
@@ -26,6 +27,9 @@ namespace {
 constexpr int kMinMouseDelta = -32767;
 constexpr int kMaxMouseDelta = 32767;
 constexpr std::chrono::seconds kKeepAliveInterval(30);
+// Modified 2026-11-13: pause between the reports that home the pointer, so the device's
+// Bluetooth link delivers each of them instead of dropping a burst
+constexpr std::chrono::milliseconds kHomingReportInterval(8);
 constexpr double kKeepAliveIntervalSeconds = static_cast<double>(kKeepAliveInterval.count());
 
 std::string hexDump(const uint8_t *data, size_t length, size_t maxBytes = 32)
@@ -218,6 +222,15 @@ void BridgePlatformScreen::fakeMouseMove(int32_t x, int32_t y)
 {
   LOG_VERBOSE("BridgeScreen: mouse move to %d,%d", x, y);
 
+  // Modified 2026-11-13: the client moves to the entry position just before enter(). The
+  // device's pointer is somewhere else, so only record the position; enter() homes the pointer
+  // and moves it there.
+  if (!m_pointerHomed) {
+    m_cursorX = x;
+    m_cursorY = y;
+    return;
+  }
+
   int32_t dx = x - m_cursorX;
   int32_t dy = y - m_cursorY;
 
@@ -378,6 +391,9 @@ void BridgePlatformScreen::enter()
       }
     }
   }
+
+  m_entered = true;
+  homePointer();
 }
 
 bool BridgePlatformScreen::canLeave()
@@ -390,6 +406,31 @@ void BridgePlatformScreen::leave()
   LOG_DEBUG("BridgeScreen: leave");
   LOG_PRINT("%s", qPrintable(requests::formatFocus(false)));
   fakeAllKeysUp();
+  // the device's pointer stays where it is; home it again on the next entry
+  m_entered = false;
+  m_pointerHomed = false;
+}
+
+void BridgePlatformScreen::homePointer()
+{
+  LOG_DEBUG("BridgeScreen: homing the pointer, then moving it to %d,%d", m_cursorX, m_cursorY);
+  if (!sendMouseSteps(pointer::homeAndMoveTo(m_cursorX, m_cursorY), true)) {
+    LOG_WARN("BridgeScreen: failed to home the pointer");
+  }
+  // even if a report failed, later moves are relative to the tracked position again
+  m_pointerHomed = true;
+}
+
+bool BridgePlatformScreen::sendMouseSteps(const std::vector<PointerStep> &steps, bool paced) const
+{
+  bool sent = true;
+  for (size_t i = 0; i < steps.size(); ++i) {
+    if (paced && i > 0) {
+      std::this_thread::sleep_for(kHomingReportInterval);
+    }
+    sent = sendMouseMoveEvent(steps[i].dx, steps[i].dy) && sent;
+  }
+  return sent;
 }
 
 bool BridgePlatformScreen::setClipboard(ClipboardID id, const IClipboard *clipboard)
@@ -669,6 +710,11 @@ bool BridgePlatformScreen::loadActiveProfile()
   m_screenWidth = width;
   m_screenHeight = height;
   getCursorCenter(m_cursorX, m_cursorY);
+  // Modified 2026-11-13: the tracked position jumped to the new centre; bring the device's
+  // pointer along if the cursor is on this screen
+  if (m_entered) {
+    homePointer();
+  }
   return true;
 }
 
