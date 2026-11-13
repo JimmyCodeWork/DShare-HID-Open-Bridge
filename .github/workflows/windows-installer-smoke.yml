@@ -1,0 +1,46 @@
+name: Windows installer smoke test
+on:
+  push:
+    branches: [test/windows-installer]
+permissions:
+  actions: read
+  contents: read
+jobs:
+  install:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - name: Wait for the preview package
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $repo = 'JimmyCodeWork/DShare-HID-Open-Bridge'
+          $run = '43462140592'
+          $deadline = (Get-Date).AddMinutes(20)
+          do {
+            $data = gh run view $run --repo $repo --json status,conclusion | ConvertFrom-Json
+            if ($data.status -eq 'completed') {
+              if ($data.conclusion -ne 'success') { throw "Package build failed: $($data.conclusion)" }
+              break
+            }
+            Start-Sleep -Seconds 20
+          } while ((Get-Date) -lt $deadline)
+          if ($data.status -ne 'completed') { throw 'Timed out waiting for package build' }
+          gh run download $run --repo $repo --name windows-preview-packages --dir packages
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Install and launch
+        shell: pwsh
+        run: |
+          $msi = Get-ChildItem packages/*.msi | Select-Object -First 1
+          if (-not $msi) { throw 'MSI missing' }
+          $log = Join-Path $env:RUNNER_TEMP 'openbridge-install.log'
+          $installer = Start-Process msiexec.exe -ArgumentList @('/i', ('"' + $msi.FullName + '"'), '/qn', '/norestart', '/l*v', ('"' + $log + '"')) -Wait -PassThru
+          if ($installer.ExitCode -ne 0) { Get-Content $log -Tail 100; throw "Installer failed: $($installer.ExitCode)" }
+          $exe = Join-Path $env:ProgramFiles 'DShare-HID Open Bridge/dshare-hid.exe'
+          if (-not (Test-Path $exe)) { throw "Installed executable missing: $exe" }
+          $app = Start-Process $exe -PassThru
+          Start-Sleep -Seconds 10
+          $app.Refresh()
+          if ($app.HasExited) { throw "Application exited immediately: $($app.ExitCode)" }
+          Stop-Process -Id $app.Id -Force
