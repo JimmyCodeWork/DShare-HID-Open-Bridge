@@ -1,0 +1,71 @@
+name: Windows release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to build and publish, for example v0.1.0-alpha.2.
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: windows-release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+jobs:
+  build:
+    uses: ./.github/workflows/windows-preview.yml
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    secrets: inherit
+    with:
+      ref: refs/tags/${{ inputs.tag || github.ref_name }}
+      version-label: ${{ inputs.tag || github.ref_name }}
+      artifact-name: windows-release-packages
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.artifact-name }}
+          path: dist
+      - name: Verify checksums
+        working-directory: dist
+        run: sha256sum -c SHA256SUMS.txt
+      - name: Create or update the GitHub release
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG exists; uploading assets."
+          else
+            prerelease=()
+            if [[ "$TAG" == *-* ]]; then prerelease=(--prerelease); fi
+            cat > notes.md <<EOF
+          ## Verifying the download
+
+          Windows packages are built by GitHub Actions from tag \`$TAG\`. Each package has a
+          SHA-256 checksum in \`SHA256SUMS.txt\` and a signed build provenance attestation.
+
+          \`\`\`powershell
+          Get-FileHash .\\<file> -Algorithm SHA256
+          gh attestation verify .\\<file> --repo $GH_REPO
+          \`\`\`
+
+          See the README for details, including browser and SmartScreen warnings.
+          EOF
+            gh release create "$TAG" --verify-tag --title "DShare-HID Open Bridge $TAG" \
+              --notes-file notes.md --generate-notes "${prerelease[@]}"
+          fi
+          gh release upload "$TAG" dist/*.msi dist/*.zip dist/SHA256SUMS.txt --clobber

@@ -17,3 +17,23 @@ if(CPACK_GENERATOR MATCHES 7Z|ZIP)
   The portable version does not include the daemon, so the client will not work at UAC prompts or the login screen.
 ")
 endif()
+
+# Optional Authenticode signing of the staged files and the MSI custom action DLL.
+# Enabled when the build environment provides WINDOWS_SIGNING_CERTIFICATE; see
+# docs/windows-code-signing.md. Already-signed third-party files are skipped.
+if(DEFINED ENV{WINDOWS_SIGNING_CERTIFICATE} AND NOT "$ENV{WINDOWS_SIGNING_CERTIFICATE}" STREQUAL "")
+  find_program(_DSH_PWSH NAMES pwsh powershell REQUIRED)
+  set(_DSH_SIGN_TARGETS "${CPACK_TEMPORARY_INSTALL_DIRECTORY}")
+  if(EXISTS "@CMAKE_CURRENT_BINARY_DIR@/wix-custom.dll")
+    list(APPEND _DSH_SIGN_TARGETS "@CMAKE_CURRENT_BINARY_DIR@/wix-custom.dll")
+  endif()
+  execute_process(
+    COMMAND "${_DSH_PWSH}" -NoProfile -ExecutionPolicy Bypass
+      -File "@CMAKE_SOURCE_DIR@/deploy/windows/Invoke-CodeSigning.ps1"
+      -Required ${_DSH_SIGN_TARGETS}
+    RESULT_VARIABLE _DSH_SIGN_RESULT
+  )
+  if(NOT _DSH_SIGN_RESULT EQUAL 0)
+    message(FATAL_ERROR "Code signing failed (${_DSH_SIGN_RESULT}).")
+  endif()
+endif()
