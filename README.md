@@ -1,275 +1,47 @@
-<div align="center">
+# DShare-HID Open Bridge
 
-<img src="docs/io.github.lockekk.dshare-hid.png" alt="DShare-HID" width="112">
+[English](#english) | [繁體中文](#繁體中文)
 
-# DShare-HID
+## 繁體中文
 
-> **Custom bridge development fork (2026-11-13):** This fork is preparing support for
-> independently built ESP32-C3 firmware with owner-controlled device keys. Start with
-> [the custom bridge development guide](docs/custom-bridge.md). The replacement firmware
-> is not implemented yet; the upstream documentation below describes the original product.
+DShare-HID Open Bridge 是 [DShare-HID](https://github.com/lockekk/dshare-hid) 的 fork，沿用其桌面鍵鼠共享架構，開發自行實作的 ESP32-C3 藍牙 HID 橋接韌體。DShare-HID 源自 [Deskflow](https://github.com/deskflow/deskflow)。本 fork 不是上游作者的官方版本。
 
-**Share your computer's keyboard and mouse with iPad, iPhone and Android.**
+> [!WARNING]
+> **目前是實驗性測試版，尚未確認可正常使用。** Windows 桌面程式尚未完成整體建置，也尚未驗證 ESP32 燒錄、USB 握手、iPad 配對及實際鍵鼠操作。請勿將此版本視為穩定產品。
 
-<a href="https://github.com/lockekk/dshare-hid/releases/latest"><img src="https://img.shields.io/badge/Download-latest%20release-2EA44F?style=for-the-badge&logo=github&logoColor=white" alt="Download the latest release"></a>
+### 目前提供什麼
 
-[Install](#-installation) · [First use](#first-use--flashing-guide) · [Support](#support--contact)
+- 實驗性的 ESP32-C3 韌體：USB 通訊、簽章握手，以及藍牙鍵盤、滑鼠和媒體鍵報告。
+- 每次設定板子時產生新的裝置金鑰；桌面端於執行時載入公鑰，換鑰不需要重新編譯桌面程式。
+- 桌面設定介面與命令列設定工具；設定時嘗試編譯、燒錄、驗證板子，再儲存公鑰。
+- 使用測試金鑰的 ESP32-C3 交叉編譯、部分主機端測試及介面模擬測試已通過；這些測試不能代替實機驗證。
 
-<a href="https://github.com/lockekk/dshare-hid/releases/latest"><img src="https://img.shields.io/github/v/release/lockekk/dshare-hid?style=flat-square&color=blue" alt="Latest release"></a>
-<a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--2.0-blue?style=flat-square" alt="License: GPL-2.0"></a>
-<img src="https://img.shields.io/badge/Qt-41CD52?style=flat-square&logo=qt&logoColor=white" alt="Qt">
-<img src="https://img.shields.io/badge/ESP32--C3-E7352C?style=flat-square&logo=espressif&logoColor=white" alt="ESP32-C3">
-<img src="https://img.shields.io/badge/ESP32--C6-E7352C?style=flat-square&logo=espressif&logoColor=white" alt="ESP32-C6">
-<a href="https://ko-fi.com/lockekk"><img src="https://img.shields.io/badge/Ko--fi-Buy%20me%20a%20coffee-FF5E5B?style=flat-square&logo=kofi&logoColor=white" alt="Buy me a coffee on Ko-fi"></a>
-<br>
-<img src="https://img.shields.io/badge/Windows-0078D4?style=flat-square&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0wIDBoMTEuNHYxMS40SDB6TTEyLjYgMEgyNHYxMS40SDEyLjZ6TTAgMTIuNmgxMS40VjI0SDB6TTEyLjYgMTIuNkgyNFYyNEgxMi42eiIvPjwvc3ZnPg%3D%3D" alt="Windows">
-<img src="https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white" alt="macOS">
-<img src="https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black" alt="Linux">
+目前目標是單一設定檔的 ESP32-C3 SuperMini；其他型號、多裝置切換及平台相容性尚未驗證。韌體設定流程不啟用 Secure Boot 或 Flash Encryption，也不寫入限制重新燒錄的 eFuse，讓板子保留重刷與改作他用的能力。
 
-**[ English ]** | [ 简体中文 ](README_zh-CN.md)
+### 取得與開發
 
-</div>
+[查看 v0.1.0-alpha.1 測試版](https://github.com/JimmyCodeWork/DShare-HID-Open-Bridge/releases/tag/v0.1.0-alpha.1)｜[所有發行版本](https://github.com/JimmyCodeWork/DShare-HID-Open-Bridge/releases)
 
----
+目前發行版本提供原始碼，**沒有已驗證的安裝程式或可直接使用的韌體**。開發與建置資訊：
 
+- [自製橋接開發說明](docs/custom-bridge.md)
+- [韌體、金鑰與燒錄說明](firmware/open-bridge/README.md)
+- [上游桌面程式建置說明](docs/dev/build.md)
 
+設定工具目前需要 Python、PlatformIO、`cryptography` 和 `pyserial`。私鑰會被放進韌體與板子的快閃記憶體；設定時產生的臨時檔會在正常結束或可處理的錯誤後刪除，但一般刪除不保證資料無法復原。請勿公開分享私鑰或含私鑰的韌體與建置產物。
 
-## Introduction
+### 來源與授權
 
-DShare-HID is a high-performance, open-source project derived from [Deskflow](https://github.com/deskflow/deskflow). While sharing the core architecture, DShare-HID is an independent fork focused on sharing keyboard and mouse inputs with mobile devices including iPad, iPhone, and Android phones.
+感謝 [DShare-HID](https://github.com/lockekk/dshare-hid) 及 [Deskflow](https://github.com/deskflow/deskflow) 的貢獻者。本 fork 保留上游版權與授權聲明；詳見 [LICENSE](LICENSE) 和各原始檔的授權標記。原始上游說明保留於 [README.upstream.md](README.upstream.md) 與 [README_zh-CN.md](README_zh-CN.md)；其中原廠下載、付費韌體及功能敘述不代表本 fork 已支援或驗證。
 
-<div align="center">
-  <img src="docs/images/dshare-hid-poster.png" width="800" alt="DShare-HID Poster">
-</div>
+## English
 
+DShare-HID Open Bridge is an independent fork of [DShare-HID](https://github.com/lockekk/dshare-hid), itself derived from [Deskflow](https://github.com/deskflow/deskflow). It develops independently implemented ESP32-C3 Bluetooth HID bridge firmware. It is not an official upstream release.
 
-## Expanding the Deskflow Ecosystem: Mobile Integration
+**This is an experimental prerelease, not a verified working product.** The full Windows desktop build, hardware flashing, USB handshake, iPad pairing, and keyboard/mouse operation have not yet been verified. The [alpha release](https://github.com/JimmyCodeWork/DShare-HID-Open-Bridge/releases/tag/v0.1.0-alpha.1) contains source code only; there is no verified installer or ready-to-use firmware.
 
-While traditional software KVM solutions like Deskflow work great between computers, they cannot support mobile platforms like iPadOS or Android. DShare-HID bridges this gap by extending Deskflow's capabilities to these devices:
-- **iOS and Android** do not allow background apps to intercept or simulate system-wide HID (Human Interface Device) events for security reasons.
-- **Apple Sidecar/Universal Control** is restricted to the Apple ecosystem, leaving Windows and Linux users behind.
-- **Remote Desktop** solutions often suffer from high latency and depend on network stability, which can impact fluid, real-time peripheral sharing.
+The prototype includes a single-profile ESP32-C3 firmware, device-key provisioning, runtime public-key loading, and a desktop setup dialog. Cross-compilation with a test key, host-side protocol tests, and simulated dialog tests have passed. See the [development guide](docs/custom-bridge.md) and [firmware instructions](firmware/open-bridge/README.md) for prerequisites, security limitations, and testing status.
 
-## The Solution: Hardware Bridge Client
+The setup does not enable Secure Boot or Flash Encryption or burn eFuses that restrict reflashing. A firmware build contains its private key; keep the board and build artifacts private. Temporary files are deleted on normal completion or handled errors, but ordinary deletion does not guarantee secure erasure.
 
-DShare-HID uses a budget-friendly (~$2.50 USD on AliExpress) **ESP32-C3 Supermini** board, or a **Seeed Studio XIAO ESP32-C6**, as a hardware bridge. It converts Deskflow events into **Bluetooth Low Energy (BLE) HID**, letting you wirelessly share your keyboard and mouse with any mobile device.
-
-<br/> <img src="docs/images/esp32-c3-supermini.png" height="120" alt="ESP32-C3 Super Mini"> <br/> <sub>Image credit: [Josselin Hefti](https://www.printables.com/model/1360390-esp32-c3-super-mini-model)</sub>
-
-
-
-## 📸 Screenshots
-
-|                            Main UI                            |                               Device Configuration                               |
-| :-----------------------------------------------------------: | :------------------------------------------------------------------------------: |
-| <img src="docs/images/main_ui.png" height="300" alt="Main UI"> | <img src="docs/images/device_config.png" height="300" alt="Device Configuration"> |
-
-
-## Key Features
-
-- **Native Experience**: No apps or drivers are required on the target device. It sees a standard Bluetooth peripheral.
-- **Ultra-Low Latency**: Offers superior responsiveness compared to remote screen sharing solutions.
-- **Universal Compatibility**: Fully supports **Windows, macOS, and Linux** hosts. Compatible with official upstream Deskflow clients.
-- **Multi-Device Pairing**: Securely pair and toggle between up to **6 mobile devices**. Switching is instantaneous and effortless.
-- **US Layout & International Flexibility**: Acts as a standard US layout keyboard but supports native iOS/Android "Hardware Keyboard" settings for non-US mappings.
-- **Consumer Key Support**: Dedicated control for media keys, including Play/Pause and Volume.
-- **Native External Display**: Use your tablet as a high-quality secondary screen.
-
-
-> [!NOTE]
-> **Clipboard Sharing**: Deskflow's network clipboard sharing is not supported at the moment but will be supported in a future update.
-
-## 📥 Installation
-
-We provide pre-built binaries for all major platforms. Choose the one that fits your environment.
-
-### macOS (Universal)
-Suitable for macOS 12+ (Intel & Apple Silicon).
-
-#### Option A: Homebrew (Disabled - Coming Soon)
-This option is currently disabled and will be supported in a future update.
-
-<!--
-```bash
-# 1. Add the Tap
-brew tap lockekk/dshare-hid
-
-# 2. Install
-brew install --cask dshare-hid
-
-# To Uninstall
-brew uninstall dshare-hid
-
-# To Update
-brew upgrade dshare-hid
-```
--->
-
-#### Option B: Manual Install
-1.  Download the latest `.dmg` from the [Releases](https://github.com/lockekk/dshare-hid/releases) page.
-2.  Open the downloaded `.dmg` and drag the application to your `Applications` folder.
-3.  **Note**: If you encounter a "Damaged" or "Unverified" error, run the following command in Terminal:
-    ```bash
-    xattr -cr /Applications/DShare-HID.app
-    ```
-    Or, without Terminal: open the app once and click **Done**, then go to **System Settings → Privacy & Security** and click **Open Anyway**.
-
-> [!IMPORTANT]
-> **Permissions & Setup**:
-> - **Accessibility Access**: You must grant "Accessibility" access (Privacy & Security) to both the **DShare-HID** app and the **dshare-hid-core** process.
-> - **macOS Sequoia**: You may also need to allow DShare-HID under "Local Network" settings.
-> - **Upgrading**: If you are upgrading and already have DShare-HID on the allowed list, you may need to **manually remove** the old entries before accessibility access can be granted to the new version.
-
-### Windows
-**Dependency**: Please ensure you have installed **Microsoft Visual C++ Redistributable v14.44 or later** before use.
-
-Available as a portable archive (Recommended) or installer.
-
--   **Portable (.zip)**: **Recommended**. Extract and run `dshare-hid.exe`.
--   **Installer (.msi)**: Download and double-click to install.
-
-### Linux
-We support major distributions via AppImage and Flatpak.
-
-> [!IMPORTANT]
-> **Permissions**: To access the USB device, your user **must** have permission to access serial ports (usually the `dialout` group).
-> Run the following command and then **logout and login** (or **reboot**) for the change to take effect:
-> ```bash
-> sudo usermod -a -G dialout $USER
-> ```
-
-#### Option A: AppImage (Universal)
-Works on newer Linux distributions (Ubuntu 22.04+, Fedora 36+, etc.).
-
-1.  Download the `.AppImage` file from [Releases](https://github.com/lockekk/dshare-hid/releases).
-2.  Make it executable:
-    ```bash
-    chmod +x dshare-hid-1.26.0-linux-x86_64.AppImage
-    ```
-3.  Run it:
-    ```bash
-    ./dshare-hid-1.26.0-linux-x86_64.AppImage
-    ```
-
-#### Option B: Flatpak
-Please download the `.flatpak` file from our [Releases](https://github.com/lockekk/dshare-hid/releases) page and install it locally.
-
-**1. Setup Flatpak**
-If you haven't used Flatpak before, ensure it is installed and the Flathub repository is added:
-```bash
-# Debian/Ubuntu
-sudo apt install flatpak
-
-# Fedora
-sudo dnf install flatpak
-
-# Arch Linux
-sudo pacman -S flatpak
-
-# Add Flathub Repo (All Distros)
-flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-```
-
-**2. Install**
-```bash
-flatpak install --user ./dshare-hid-1.26.0-linux-x86_64.flatpak
-```
-
-# Manage
-```bash
-# Uninstall
-flatpak uninstall io.github.lockekk.dshare-hid
-
-# Reinstall (Remove then Install)
-flatpak uninstall io.github.lockekk.dshare-hid
-flatpak install --user ./dshare-hid-1.26.0-linux-x86_64.flatpak
-```
-
-#### Option C: Debian Package (Ubuntu 24+)
-For Ubuntu 24.04 and newer.
-
-1.  Download the `.deb` file from [Releases](https://github.com/lockekk/dshare-hid/releases).
-2.  Install:
-    ```bash
-    sudo apt install ./dshare-hid_1.26.0_ubuntu_24.04_amd64.deb
-    ```
-3.  Uninstall:
-    ```bash
-    sudo apt remove dshare-hid
-    ```
-
-## First Use & Flashing Guide
-
-### 1. Prepare Hardware
-You will need an **ESP32-C3 Supermini** or a **Seeed Studio XIAO ESP32-C6** board. Both are cheap and widely available from AliExpress, Seeed Studio or local electronics stores. Connect it to your computer via USB.
-
-### 2. Access Flash Tool
-Open DShare-HID and navigate to **File -> Firmware** to open the management interface.
-
-### 3. New Dongle Setup
-You only need to do this once for each new dongle:
-
-<div align="center">
-  <img src="docs/images/firmware_new_dongle_setup.png" width="600" alt="New Dongle Setup">
-</div>
-
-1.  Go to the **New Dongle Setup** tab.
-    *   **Windows**: hold the **Boot** button on the board while you plug it in, then click **Refresh**.
-2.  Click **Flash** under "Online", then **Yes** to confirm. The app downloads the latest firmware and installs it. Everything else is automatic.
-3.  When it finishes, the device restarts and the **7-day free trial** starts automatically. No order or activation key is needed for the trial.
-
-**Note**: The first start permanently locks the board to official DShare-HID firmware (Secure Boot and flash encryption). After that, the board can only be updated as described in [Firmware Upgrades](#5-firmware-upgrades) and cannot be reused for other ESP32 projects. If the dongle is already set up, the **New Dongle Setup** tab only shows "This dongle is already set up."
-
-### 4. Purchase & Activation
-1.  Go to the **Order** tab.
-2.  Choose **Purchase Full License** (or **Upgrade Profile Capacity** for more profiles), fill in your details and payment information, and click **Email** to send the order.
-3.  Once the payment is confirmed, you will receive an **activation key** by email.
-4.  Go to the **Activation** tab, paste the key and click **Activate**. The device state changes to **Activated**.
-
-### 5. Firmware Upgrades
-Later updates use the **Upgrade** tab. It only works on a dongle that is already set up; a new dongle goes through [New Dongle Setup](#3-new-dongle-setup) first.
-
-<div align="center">
-  <img src="docs/images/firmware_upgrade.png" width="600" alt="Upgrade">
-</div>
-
-1.  Go to the **Upgrade** tab and click **Check for Updates**.
-2.  If an update is available, click **Flash** to install it via OTA. Your license and profiles are kept.
-
-*   **Firmware file**: To install a firmware file (`.uzip`) you already have, select it under "Manual" and click **Flash**.
-*   **Interrupted update**: Run it again from the **Upgrade** tab.
-
-### 6. Maintenance
-*   **Activation**: Go to the **Activation** tab to view your serial number and license status, or enter a new activation key.
-*   **Problems**: The log at the bottom of the window shows each step. If something fails, copy it into your email to support.
-
-## Building from Source
-The development environment and build process for DShare-HID are **identical to the upstream [Deskflow project](https://github.com/deskflow/deskflow)**. You can follow the official build instructions for Windows, macOS, and Linux.
-
-**Note**: The firmware flashing and authentication modules are optional components and not part of the core open-source project. Users are welcome to build and use their own custom firmware implementation.
-
-## Open Source & Commercial Terms
-DShare-HID is an open-source project at its core. The desktop application and bridge architecture are open for contribution and community improvement.
-
-- **7-Day Full Trial**: Experience the full functionality of the firmware and software for 7 days at no cost.
-- **Lifetime Value**: After the trial, a one-time activation provides **lifetime free upgrades via OTA** and **lifetime maintenance**.
-
-## Acknowledgments
-Special thanks to the [Deskflow](https://github.com/deskflow/deskflow) project and its contributors. This project is built upon their strong foundation.
-
-We also thank [Josselin Hefti](https://www.printables.com/model/1360390-esp32-c3-super-mini-model) for the excellent 3D model image of the ESP32-C3 Supermini.
-
-## Support & Contact
-- **Email**: [dshare.hid@gmail.com](mailto:dshare.hid@gmail.com)
-- **Issues**: Please report bugs via [GitHub Issues](https://github.com/lockekk/dshare-hid/issues).
-
-If DShare-HID is useful to you, you can buy me a coffee — entirely optional, and thanks.
-
-<a href="https://ko-fi.com/lockekk"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support DShare-HID on Ko-fi" height="30"></a>
-
-## Disclaimer & Legal
-DShare-HID is an open-source project. However, some optional features (like firmware management) may rely on proprietary components. The core application remains fully functional and open-source without these components.
-
-## License
-DShare-HID is licensed under the **GNU General Public License v2.0 (GPL-2.0-only)**. This project is a derivative work based on [Deskflow](https://github.com/deskflow/deskflow).
-
+The original upstream README files are preserved as [English](README.upstream.md) and [Simplified Chinese](README_zh-CN.md) references; their downloads, vendor firmware, and feature claims describe upstream, not this fork. See [LICENSE](LICENSE) and source-file notices for applicable licensing.
