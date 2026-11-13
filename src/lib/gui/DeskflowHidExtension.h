@@ -43,6 +43,7 @@ public:
   void setup();
   void shutdown();
   void openEsp32HidTools();
+  void openCustomBridgeSetup();
   bool hasActiveBridgeClients() const;
 
   void pauseUsbMonitoring();

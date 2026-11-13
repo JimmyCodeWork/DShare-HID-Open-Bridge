@@ -23,12 +23,17 @@ From the repository root in PowerShell, replace COM3 with the actual port:
 py firmware/open-bridge/provision.py --port COM3
 ```
 
+In a custom bridge desktop build, the **File → Set up open bridge** dialog can
+run the same process. It lists available serial ports and also accepts a port
+entered manually. Python and the packages above must be installed separately;
+the first PlatformIO build also downloads its toolchain. The dialog pauses bridge
+clients while the port is in use and displays the operation log.
+
 The script makes a fresh key, builds and flashes in a temporary directory,
 verifies the board's signature, and saves the public key to
 `%USERPROFILE%\.dshare-hid\bridge-keys\Open-<serial>.bin` only after verification.
 Running it again rotates that board's key; the previous public key remains until
-the new handshake succeeds. This is currently a command-line workflow, not a
-desktop setup screen. Close the bridge client before provisioning so the serial
+the new handshake succeeds. When using the command line, close the bridge client before provisioning so the serial
 port is free. If the flash succeeds but verification fails, run the command again;
 the desktop retains its old key and cannot authenticate that new firmware.
 

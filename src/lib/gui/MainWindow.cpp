@@ -379,7 +379,11 @@ void MainWindow::connectSlots()
   connect(m_actionStartCore, &QAction::triggered, this, &MainWindow::startCore);
   connect(m_actionRestartCore, &QAction::triggered, this, &MainWindow::resetCore);
   connect(m_actionStopCore, &QAction::triggered, this, &MainWindow::stopCore);
-#if DESKFLOW_HID_ENABLE_ESP32_HID_TOOLS
+#if defined(DSH_CUSTOM_BRIDGE_RUNTIME_KEYS)
+  connect(m_actionEsp32HidTools, &QAction::triggered, this, [this] {
+    if (m_deskflowHidExtension) m_deskflowHidExtension->openCustomBridgeSetup();
+  });
+#elif DESKFLOW_HID_ENABLE_ESP32_HID_TOOLS
   connect(m_actionEsp32HidTools, &QAction::triggered, this, &MainWindow::openEsp32HidTools);
 #else
   m_actionEsp32HidTools->setEnabled(false);
@@ -799,13 +803,8 @@ void MainWindow::createMenuBar()
   m_menuFile->addAction(m_actionRestartCore);
   m_menuFile->addAction(m_actionStopCore);
   m_menuFile->addSeparator();
-#if DESKFLOW_HID_ENABLE_ESP32_HID_TOOLS
   m_menuFile->addAction(m_actionEsp32HidTools);
   m_menuFile->addSeparator();
-#else
-  m_menuFile->addAction(m_actionEsp32HidTools);
-  m_menuFile->addSeparator();
-#endif
   m_menuFile->addAction(m_actionQuit);
 
   m_menuEdit->addAction(m_actionSettings);
@@ -1260,7 +1259,9 @@ void MainWindow::updateText()
   m_actionStartCore->setText(tr("&Start"));
   m_actionRestartCore->setText(tr("Rest&art"));
   m_actionStopCore->setText(tr("S&top"));
-#if DESKFLOW_HID_ENABLE_ESP32_HID_TOOLS
+#if defined(DSH_CUSTOM_BRIDGE_RUNTIME_KEYS)
+  m_actionEsp32HidTools->setText(tr("Set up open bridge..."));
+#elif DESKFLOW_HID_ENABLE_ESP32_HID_TOOLS
   m_actionEsp32HidTools->setText(tr("Firmware"));
 #else
   m_actionEsp32HidTools->setText(tr("Firmware (Unavailable)"));

@@ -17,6 +17,9 @@
 #include "gui/core/CoreProcess.h"
 #include "gui/devices/UsbDeviceHelper.h"
 #include "gui/dialogs/BridgeClientConfigDialog.h"
+#ifdef DSH_CUSTOM_BRIDGE_RUNTIME_KEYS
+#include "gui/dialogs/OpenBridgeSetupDialog.h"
+#endif
 #include "gui/layout/DisplayLayoutFollow.h"
 #include "gui/layout/DisplayLayoutStore.h"
 #include "gui/widgets/BridgeClientWidget.h"
@@ -240,6 +243,23 @@ void DeskflowHidExtension::openEsp32HidTools()
   QMessageBox::information(
       m_mainWindow, tr("Feature Unavailable"), tr("The ESP32 HID Tools module is not available in this build.")
   );
+#endif
+}
+
+void DeskflowHidExtension::openCustomBridgeSetup()
+{
+#ifdef DSH_CUSTOM_BRIDGE_RUNTIME_KEYS
+  pauseUsbMonitoring();
+  m_bridgeClientsSuspended = true;
+  stopAllBridgeClients();
+  BridgeDeviceService::setSuspended(true);
+  OpenBridgeSetupDialog dialog(m_mainWindow);
+  dialog.exec();
+  BridgeDeviceService::setSuspended(false);
+  m_bridgeClientsSuspended = false;
+  m_deviceScanFailures.clear();
+  resumeUsbMonitoring();
+  if (isServerReady()) processConnectionRequests();
 #endif
 }
 

@@ -1,0 +1,12 @@
+<RCC>
+  <qresource prefix="/openbridge">
+    <file alias="platformio.ini">../../../firmware/open-bridge/platformio.ini</file>
+    <file alias="prepare_identity.py">../../../firmware/open-bridge/prepare_identity.py</file>
+    <file alias="provision.py">../../../firmware/open-bridge/provision.py</file>
+    <file alias="main.cpp">../../../firmware/open-bridge/main.cpp</file>
+    <file alias="usb_frame_decoder.cpp">../../../firmware/open-bridge/usb_frame_decoder.cpp</file>
+    <file alias="usb_frame_decoder.h">../../../firmware/open-bridge/usb_frame_decoder.h</file>
+    <file alias="hid_state.cpp">../../../firmware/open-bridge/hid_state.cpp</file>
+    <file alias="hid_state.h">../../../firmware/open-bridge/hid_state.h</file>
+  </qresource>
+</RCC>

@@ -93,8 +93,11 @@ def main():
         env = os.environ.copy()
         env['DSH_BRIDGE_PRIVATE_KEY'] = str(key_file)
         command = [sys.executable, '-m', 'platformio', 'run', '-d', str(project)]
+        print('Building firmware...', flush=True)
         subprocess.run(command, check=True, env=env)
+        print('Flashing the selected board...', flush=True)
         subprocess.run(command + ['-t', 'upload', '--upload-port', args.port], check=True, env=env)
+        print('Verifying the new device identity...', flush=True)
         serial_number = verify_and_identify(args.port, public)
         TRUST.mkdir(parents=True, exist_ok=True)
         # Store the new trust anchor atomically only after the signed handshake succeeds.
