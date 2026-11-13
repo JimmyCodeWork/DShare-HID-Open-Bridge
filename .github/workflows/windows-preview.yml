@@ -25,6 +25,11 @@ permissions:
   contents: read
   id-token: write
   attestations: write
+concurrency:
+  # A newer push to the same ref supersedes an in-progress preview build. Release builds are
+  # called from windows-release.yml, which has its own non-cancelling concurrency group.
+  group: windows-preview-${{ github.workflow }}-${{ inputs.ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/') }}
 jobs:
   package:
     runs-on: windows-2022
@@ -37,6 +42,8 @@ jobs:
       WINDOWS_SIGNING_CERTIFICATE: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE }}
       WINDOWS_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE_PASSWORD }}
       WINDOWS_SIGNING_TIMESTAMP_URL: ${{ vars.WINDOWS_SIGNING_TIMESTAMP_URL }}
+      # Compiler cache for the project's own sources.
+      SCCACHE_GHA_ENABLED: 'true'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -53,17 +60,36 @@ jobs:
           if ($label -notmatch '^[0-9A-Za-z][0-9A-Za-z.+-]*$') { throw "Invalid version label: $label" }
           "version-label=$label" >> $env:GITHUB_OUTPUT
           "artifact-name=$env:ARTIFACT_NAME" >> $env:GITHUB_OUTPUT
+          # Single source of truth for the Qt version, shared with run_task.bat.
+          $qt = (Get-Content cmake/qt-version.txt -Raw).Trim()
+          if ($qt -notmatch '^\d+\.\d+\.\d+$') { throw "Invalid Qt version in cmake/qt-version.txt: $qt" }
+          "qt-version=$qt" >> $env:GITHUB_OUTPUT
           if ($env:WINDOWS_SIGNING_CERTIFICATE) {
             Write-Host 'Code signing: enabled'
           } else {
             Write-Host '::notice::Code signing certificate not configured; packages will be unsigned.'
           }
       - uses: ilammy/msvc-dev-cmd@v1
+      # Prebuilt Qt and Qt's OpenSSL 3 build; both are cached, so nothing is compiled from source.
       - uses: jurplel/install-qt-action@v4
         with:
-          version: '6.7.3'
-          arch: win64_msvc2019_64
+          version: ${{ steps.meta.outputs.qt-version }}
+          arch: win64_msvc2022_64
+          tools: tools_opensslv3_x64
           cache: true
+      - name: Locate OpenSSL
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:IQTA_TOOLS 'OpenSSLv3/Win_x64'
+          foreach ($item in 'include/openssl/ssl.h', 'include/openssl/applink.c', 'lib/libssl.lib', 'lib/libcrypto.lib', 'bin') {
+            if (-not (Test-Path (Join-Path $root $item))) {
+              Get-ChildItem $env:IQTA_TOOLS -Recurse -Depth 3 | Select-Object -ExpandProperty FullName
+              throw "OpenSSL package is missing $item under $root"
+            }
+          }
+          "OPENSSL_ROOT_DIR=$root" >> $env:GITHUB_ENV
+      - name: Set up sccache
+        uses: mozilla-actions/sccache-action@v0.0.9
       - name: Install WiX 4
         shell: pwsh
         run: |
@@ -76,13 +102,14 @@ jobs:
         env:
           VERSION_LABEL: ${{ steps.meta.outputs.version-label }}
         run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" -DVCPKG_MANIFEST_MODE=ON -DVCPKG_TARGET_TRIPLET=x64-windows -DVCPKG_QT=OFF -DDSH_CUSTOM_BRIDGE=ON "-DPACKAGE_VERSION_LABEL=$env:VERSION_LABEL" -DBUILD_TESTS=OFF -DBUILD_INSTALLER=ON
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_PREFIX_PATH=$env:QT_ROOT_DIR" "-DOPENSSL_ROOT_DIR=$env:OPENSSL_ROOT_DIR" -DDSH_CUSTOM_BRIDGE=ON "-DPACKAGE_VERSION_LABEL=$env:VERSION_LABEL" -DBUILD_TESTS=OFF -DBUILD_INSTALLER=ON -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build
         shell: pwsh
         run: |
-          cmake --build build --parallel 2
+          cmake --build build
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          sccache --show-stats
       - name: Package
         shell: pwsh
         run: |

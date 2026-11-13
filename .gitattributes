@@ -8,3 +8,7 @@
 .gitignore export-ignore
 .github* export-ignore
 README.md merge=ours
+
+# Windows batch files need CRLF: cmd.exe mis-parses labels in LF-only files.
+*.bat text eol=crlf
+*.cmd text eol=crlf

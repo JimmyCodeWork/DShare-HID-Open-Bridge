@@ -8,7 +8,12 @@ macro(configure_libs)
   if(UNIX)
     configure_unix_libs()
   elseif(WIN32)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
+    # /MP only parallelises within a single cl.exe call, which only the Visual Studio
+    # generators use. Ninja already compiles files in parallel, and leaving /MP off keeps
+    # each compile cacheable by compiler launchers such as sccache.
+    if(CMAKE_GENERATOR MATCHES "Visual Studio")
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
+    endif()
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MD /O2 /Ob2")
     list(APPEND libs Wtsapi32 Userenv Wininet comsuppw Shlwapi version)
     add_definitions(

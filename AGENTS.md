@@ -3,19 +3,33 @@
 ## Running the unit tests on Windows
 
 `build/` is the app build that `run_task.bat` configures. It has `BUILD_TESTS=OFF`, and options 2, 4
-and 5 delete it. Build the tests in their own `build-tests/` folder, reusing the packages vcpkg
-already installed in `build/`:
+and 5 delete it. Build the tests in their own `build-tests/` folder.
+
+With prebuilt Qt and OpenSSL (`QT_ROOT` set; see `run_task.bat setup-qt` and `docs/dev/build.md`):
 
 ```bat
 call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
+for /f "usebackq delims=" %V in ("cmake\qt-version.txt") do set "QT_VERSION=%V"
+cmake -S . -B build-tests -G Ninja -DCMAKE_BUILD_TYPE=Release ^
+  -DCMAKE_PREFIX_PATH=%QT_ROOT%/%QT_VERSION%/msvc2022_64 ^
+  -DOPENSSL_ROOT_DIR=%QT_ROOT%/Tools/OpenSSLv3/Win_x64 ^
+  -DBUILD_TESTS=ON -DSKIP_BUILD_TESTS=ON
+cmake --build build-tests
+ctest --test-dir build-tests/src/unittests --output-on-failure --timeout 60
+```
+
+`cmake/WindowsRuntime.cmake` copies the Qt and OpenSSL DLLs next to every test executable after it
+is built, so the tests start without any `PATH` changes.
+
+With vcpkg instead (`QT_ROOT` not set), reuse the packages vcpkg already installed in `build/`:
+
+```bat
 cmake -S . -B build-tests -G Ninja -DCMAKE_BUILD_TYPE=Release ^
   -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake ^
   -DVCPKG_MANIFEST_MODE=ON -DVCPKG_MANIFEST_INSTALL=OFF ^
   -DVCPKG_INSTALLED_DIR=%CD%/build/vcpkg_installed ^
   -DVCPKG_TARGET_TRIPLET=x64-windows -DVCPKG_QT=ON ^
   -DBUILD_TESTS=ON -DSKIP_BUILD_TESTS=ON
-cmake --build build-tests
-ctest --test-dir build-tests/src/unittests --output-on-failure --timeout 60
 ```
 
 - If there is no `build/vcpkg_installed` yet, leave out the two `VCPKG_..._INSTALL` / `_DIR` options
@@ -35,7 +49,7 @@ and its process stays alive until someone closes the dialog. Under `ctest` it en
 `Exit code 0xc0000409`.
 
 `src/unittests/CMakeLists.txt` writes a `qt.conf` into every folder of tests (every `create_test`)
-that points Qt at vcpkg's own plugins. If the dialog comes back:
+that points Qt at the plugins of the Qt installation in use. If the dialog comes back:
 
 1. Kill the stuck tests:
    `Get-Process | Where-Object { $_.Path -like '*\build-tests\*' } | Stop-Process -Force`
