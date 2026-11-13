@@ -1,3 +1,6 @@
+> [!NOTE]
+> 以下保留上游项目说明供参考。下载、原厂固件和功能描述适用于上游 DShare-HID，不代表本实验性 fork 已验证或支持；本项目现状请看 [README](README.md)。
+
 <div align="center">
 
 <img src="docs/io.github.lockekk.dshare-hid.png" alt="DShare-HID" width="112">
