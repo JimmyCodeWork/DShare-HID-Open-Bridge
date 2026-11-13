@@ -5,7 +5,11 @@ Bluetooth pairing, HID behavior and desktop compatibility have not yet been
 verified on physical hardware. Do not consider it a finished product.
 
 It supports one profile, BLE keyboard/mouse/consumer reports, signed USB
-handshake and settings in NVS. A device-name change takes effect in Bluetooth
+handshake and settings in NVS. Mouse movement from USB is accumulated and sent
+as at most one Bluetooth report every 10 ms, because the desktop can send
+movement far faster than a Bluetooth HID link delivers reports; a report per
+movement would back up the link and stall the USB input. Button and wheel
+reports carry any pending movement, so events keep their order. A device-name change takes effect in Bluetooth
 advertising after a restart. The firmware releases held inputs on Bluetooth
 disconnect or after 90 seconds without USB frames. Bluetooth pairing uses
 bonding and encryption, but has no display for authenticated passkey pairing.
