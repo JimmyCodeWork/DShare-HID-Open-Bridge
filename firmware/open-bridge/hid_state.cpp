@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "hid_state.h"
 #include <cstring>
+#include <limits>
 
 namespace open_bridge {
 void HidState::keyboard()
@@ -17,6 +18,21 @@ void HidState::mouse(int16_t x, int16_t y, int8_t wheel)
                             static_cast<uint8_t>(uy), static_cast<uint8_t>(uy >> 8),
                             static_cast<uint8_t>(wheel)};
   if (send_) send_(context_, Report::Mouse, report, sizeof(report));
+}
+int16_t HidState::takeMotion(int32_t &pending)
+{
+  constexpr int32_t limit = std::numeric_limits<int16_t>::max();
+  const int32_t step = pending > limit ? limit : (pending < -limit ? -limit : pending);
+  pending -= step;
+  return static_cast<int16_t>(step);
+}
+bool HidState::flushMotion()
+{
+  if (!hasPendingMotion()) return false;
+  const int16_t x = takeMotion(pendingX_);
+  const int16_t y = takeMotion(pendingY_);
+  mouse(x, y, 0);
+  return true;
 }
 void HidState::consumer()
 {
@@ -47,11 +63,17 @@ bool HidState::handle(const uint8_t *p, size_t n)
     keyboard();
     return true;
   }
-  case 3:
+  case 3: {
     if (p[3] != 4) return false;
-    mouse(static_cast<int16_t>(uint16_t(d[0]) | (uint16_t(d[1]) << 8)),
-          static_cast<int16_t>(uint16_t(d[2]) | (uint16_t(d[3]) << 8)), 0);
+    // Accumulate; flushMotion() sends it. Saturate rather than overflow if
+    // nothing is flushed for a long time.
+    constexpr int32_t cap = 1 << 24;
+    const int32_t x = static_cast<int16_t>(uint16_t(d[0]) | (uint16_t(d[1]) << 8));
+    const int32_t y = static_cast<int16_t>(uint16_t(d[2]) | (uint16_t(d[3]) << 8));
+    pendingX_ = pendingX_ + x > cap ? cap : (pendingX_ + x < -cap ? -cap : pendingX_ + x);
+    pendingY_ = pendingY_ + y > cap ? cap : (pendingY_ + y < -cap ? -cap : pendingY_ + y);
     return true;
+  }
   case 4: case 5:
     // Desktop sends Deskflow button IDs: left=1, middle=2, right=3.
     // HID uses a bitmap with right before middle.
@@ -61,10 +83,19 @@ bool HidState::handle(const uint8_t *p, size_t n)
       const uint8_t mask = masks[d[0]];
       if (p[2] == 4) buttons_ |= mask; else buttons_ &= static_cast<uint8_t>(~mask);
     }
-    mouse(0, 0, 0); return true;
+    {
+      // the press or release happens where the pointer has moved to so far
+      const int16_t x = takeMotion(pendingX_), y = takeMotion(pendingY_);
+      mouse(x, y, 0);
+    }
+    return true;
   case 6:
     if (p[3] != 1) return false;
-    mouse(0, 0, static_cast<int8_t>(d[0])); return true;
+    {
+      const int16_t x = takeMotion(pendingX_), y = takeMotion(pendingY_);
+      mouse(x, y, static_cast<int8_t>(d[0]));
+    }
+    return true;
   case 7: case 8:
     if (p[3] != 2) return false;
     if (p[2] == 7) consumer_ = uint16_t(d[0]) | (uint16_t(d[1]) << 8);
@@ -77,6 +108,7 @@ void HidState::releaseAll()
 {
   modifiers_ = buttons_ = 0;
   consumer_ = 0;
+  pendingX_ = pendingY_ = 0;
   std::memset(keys_, 0, sizeof(keys_));
   keyboard(); mouse(0, 0, 0); consumer();
 }

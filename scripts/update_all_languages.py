@@ -138,7 +138,7 @@ def main():
         return
 
     for lang_code, translations in languages.items():
-        filename = f"deskflow_{lang_code}.ts"
+        filename = f"dshare-hid_{lang_code}.ts"
         filepath = os.path.join(base_dir, filename)
 
         if not os.path.exists(filepath):

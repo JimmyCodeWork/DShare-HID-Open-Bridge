@@ -7,6 +7,7 @@
 #include "BridgeKeyboard.h"
 #include "BridgeRequests.h"
 #include "CdcTransport.h"
+#include "PointerHoming.h"
 #include "deskflow/PlatformComputer.h"
 
 #include <chrono>
@@ -14,6 +15,7 @@
 #include <map>
 #include <memory>
 #include <set>
+#include <vector>
 
 class Event;
 
@@ -129,6 +131,10 @@ private:
   // the same, read from the device; true if the screen size changed
   bool loadActiveProfile();
   void applyProfileSettings(uint8_t index, const DeviceProfile &profile);
+  // push the device's pointer into its top-left corner, then to the tracked cursor position
+  // (see PointerHoming.h)
+  void homePointer();
+  bool sendMouseSteps(const std::vector<PointerStep> &steps, bool paced) const;
 
   std::shared_ptr<CdcTransport> m_transport;
   std::shared_ptr<requests::Queue> m_requests;
@@ -139,6 +145,10 @@ private:
   // Screen state
   int32_t m_cursorX = 0;
   int32_t m_cursorY = 0;
+  bool m_entered = false;
+  // false until the device's pointer has been homed since the cursor last entered; until then
+  // absolute moves only update the tracked position
+  bool m_pointerHomed = false;
   uint8_t m_mouseButtons = 0; // HID button bitmap
 
   BridgeKeyboard m_keyboard;

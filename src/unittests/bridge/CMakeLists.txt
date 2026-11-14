@@ -19,6 +19,16 @@ create_test(
   WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/src/lib/platform"
 )
 
+# the relative pointer moves that re-synchronise a bridge device's pointer on entry
+# (platform/bridge/PointerHoming.h)
+create_test(
+  NAME PointerHomingTests
+  DEPENDS platform
+  LIBS base arch
+  SOURCE PointerHomingTests.cpp
+  WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/src/lib/platform"
+)
+
 # the active profile as the device reports it (platform/bridge/CdcTransport.h), and the bridge
 # screen's size that follows it (platform/bridge/BridgePlatformScreen.h), against a fake dongle
 # on a pseudo-terminal

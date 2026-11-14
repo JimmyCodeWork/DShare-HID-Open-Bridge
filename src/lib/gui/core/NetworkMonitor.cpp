@@ -7,11 +7,14 @@
 #include "NetworkMonitor.h"
 
 #include <QAbstractSocket>
+#include <QElapsedTimer>
+#include <QFutureWatcher>
 #include <QList>
 #include <QNetworkInterface>
 #include <QRegularExpression>
 #include <QSet>
 #include <QTimer>
+#include <QtConcurrent/QtConcurrentRun>
 
 namespace deskflow::gui {
 
@@ -25,9 +28,24 @@ bool NetworkMonitor::isVirtualInterface(const QString &interfaceName)
   return virtualRegEx.match(interfaceName).hasMatch();
 }
 
-NetworkMonitor::NetworkMonitor(QObject *parent) : QObject(parent), m_checkTimer(new QTimer(this))
+NetworkMonitor::NetworkMonitor(QObject *parent) : NetworkMonitor(&NetworkMonitor::validAddresses, parent)
+{
+}
+
+NetworkMonitor::NetworkMonitor(AddressProvider provider, QObject *parent)
+    : QObject(parent),
+      m_provider(std::move(provider)),
+      m_watcher(new QFutureWatcher<QStringList>(this)),
+      m_checkTimer(new QTimer(this))
 {
   connect(m_checkTimer, &QTimer::timeout, this, &NetworkMonitor::updateNetworkState);
+  connect(m_watcher, &QFutureWatcher<QStringList>::finished, this, &NetworkMonitor::onCheckFinished);
+}
+
+NetworkMonitor::~NetworkMonitor()
+{
+  // the worker only touches its own copies, but don't leave it running past this object
+  m_watcher->waitForFinished();
 }
 
 void NetworkMonitor::startMonitoring(int intervalMs)
@@ -36,10 +54,10 @@ void NetworkMonitor::startMonitoring(int intervalMs)
     return;
   }
 
+  m_isMonitoring = true;
   updateNetworkState();
 
   m_checkTimer->start(intervalMs);
-  m_isMonitoring = true;
 }
 
 void NetworkMonitor::stopMonitoring()
@@ -146,7 +164,29 @@ void NetworkMonitor::setIpAddresses(const QStringList &newAddresses)
 
 void NetworkMonitor::updateNetworkState()
 {
-  setIpAddresses(validAddresses());
+  // skip this round while the previous check is still running, rather than queueing them up
+  if (m_watcher->isRunning()) {
+    return;
+  }
+
+  auto provider = m_provider;
+  m_watcher->setFuture(QtConcurrent::run([provider] {
+    QElapsedTimer timer;
+    timer.start();
+    QStringList addresses = provider();
+    if (const auto elapsed = timer.elapsed(); elapsed > 100) {
+      qDebug("NetworkMonitor: reading the network interfaces took %lld ms", static_cast<long long>(elapsed));
+    }
+    return addresses;
+  }));
+}
+
+void NetworkMonitor::onCheckFinished()
+{
+  if (!m_isMonitoring || m_watcher->isCanceled()) {
+    return;
+  }
+  setIpAddresses(m_watcher->result());
 }
 
 } // namespace deskflow::gui

@@ -30,7 +30,10 @@ NimBLECharacteristic *reports[3]{};
 volatile bool bleDisconnected = false;
 bool authenticated = false;
 bool idleReleased = false;
-uint32_t lastFrame = 0, lastByte = 0;
+uint32_t lastFrame = 0, lastByte = 0, lastMotion = 0;
+// Send accumulated mouse movement at most this often, close to the Bluetooth
+// HID connection interval, so reports never back up (see hid_state.h).
+constexpr uint32_t kMotionIntervalMs = 10;
 uint8_t profile[52]{};
 String deviceName;
 
@@ -141,5 +144,6 @@ void loop() {
   if (authenticated && !idleReleased && uint32_t(millis()-lastFrame)>90000) { hid.releaseAll(); idleReleased=true; }
   if (uint32_t(millis()-lastByte)>2000) decoder.reset();
   while (Serial.available()) { int c=Serial.read(); if (c>=0) { uint8_t b=c; decoder.feed(&b,1); lastByte=millis(); } }
+  if (hid.hasPendingMotion() && uint32_t(millis()-lastMotion) >= kMotionIntervalMs) { hid.flushMotion(); lastMotion=millis(); }
   delay(1);
 }
