@@ -9,6 +9,7 @@
 #include <QGroupBox>
 #include <QLabel>
 #include <QList>
+#include <QKeySequence>
 #include <QPushButton>
 #include <QString>
 
@@ -165,6 +166,19 @@ public:
   void setGroupLocked(bool locked, const QString &reason = QString());
 
   /**
+   * @brief Open Bridge: whether this bridge client has control (server/BridgeControlAction),
+   * which the Control button shows and toggles
+   */
+  void setHasControl(bool hasControl);
+  bool hasControl() const
+  {
+    return m_hasControl;
+  }
+
+  /// Open Bridge: the shortcut that toggles control of this bridge client, shown in the tooltip
+  void setControlShortcut(const QKeySequence &shortcut);
+
+  /**
    * @brief Check if device is available
    */
   bool isDeviceAvailable() const
@@ -185,6 +199,8 @@ Q_SIGNALS:
   /// the profiles shown, the active one, or the names they're shown under changed
   Q_SIGNAL void profilesChanged();
   Q_SIGNAL void refreshDevicesRequested();
+  /// Open Bridge: the Control button was pressed, to take control (true) or give it back (false)
+  Q_SIGNAL void controlRequested(const QString &screenName, bool take);
 
 protected:
   void changeEvent(QEvent *event) override;
@@ -213,6 +229,9 @@ private:
   QString m_groupLockReason;
 
   QPushButton *m_btnConnect;
+  QPushButton *m_btnControl = nullptr; // Open Bridge
+  bool m_hasControl = false;
+  QKeySequence m_controlShortcut;
   QPushButton *m_btnConfigure;
   QPushButton *m_btnFirmware;
   QLabel *m_deviceNameLabel;

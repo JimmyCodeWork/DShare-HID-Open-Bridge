@@ -64,6 +64,20 @@ public:
   };
 
   //! Switch to computer data
+  //! Open Bridge: the computers a bridge control request is about (BridgeControlAction)
+  class BridgeControlInfo : public EventData
+  {
+  public:
+    explicit BridgeControlInfo(std::vector<std::string> computers) : m_computers(std::move(computers))
+    {
+      // do nothing
+    }
+    ~BridgeControlInfo() override = default;
+
+  public:
+    std::vector<std::string> m_computers;
+  };
+
   class SwitchToComputerInfo : public EventData
   {
   public:
@@ -153,6 +167,12 @@ public:
   This will disconnect any clients no longer in the configuration.
   */
   bool setConfig(const ServerConfig &);
+
+  /**
+   * @brief Open Bridge: request a bridge control switch from outside the event queue's thread,
+   * e.g. the GUI over the core IPC (see BridgeControlAction for what @p computers means)
+   */
+  void requestBridgeControl(const std::vector<std::string> &computers);
 
   //! Add a client
   /*!
@@ -327,6 +347,9 @@ private:
   void handleToggleComputerEvent(const Event &);
   void handleKeyboardBroadcastEvent(const Event &event);
   void handleLockCursorToComputerEvent(const Event &event);
+  void handleBridgeControlEvent(const Event &event);
+  // Open Bridge: the computer with bridge control (empty for none); tells the GUI on change
+  void setBridgeControl(const std::string &computer);
 
   // event processing
   void onClipboardChanged(const BaseClientProxy *sender, ClipboardID id, uint32_t seqNum);
@@ -468,6 +491,9 @@ private:
 
   // computer locking (former scroll lock)
   bool m_lockedToComputer = false;
+  // Open Bridge: the bridge client that has control (BridgeControlAction), empty for none.
+  // While set, the cursor is locked to it and it gets relative movement.
+  std::string m_bridgeControl;
 
   bool m_defaultLockToComputerState = false;
   bool m_disableLockToComputer = false;

@@ -487,6 +487,10 @@ File -&gt; Firmware -&gt; Order.</source>
         <translation>在 %1 上切換設定檔失敗：%2</translation>
     </message>
     <message>
+        <source>Start the server to hand control to a bridge client</source>
+        <translation>請先啟動伺服器，才能將控制權交給橋接用戶端</translation>
+    </message>
+    <message>
         <source>Several bridge clients are connected: move the cursor onto the one to switch</source>
         <translation>已連線多個橋接用戶端：請將游標移到要切換的用戶端上</translation>
     </message>
@@ -497,6 +501,10 @@ File -&gt; Firmware -&gt; Order.</source>
     <message>
         <source>Bridge Profile Shortcuts</source>
         <translation>橋接設定檔快速鍵</translation>
+    </message>
+    <message>
+        <source>Bridge Control Shortcuts</source>
+        <translation>橋接控制快速鍵</translation>
     </message>
     <message>
         <source>Off</source>
@@ -1998,6 +2006,10 @@ Duplicate: %1</source>
         <translation>連線或中斷連線橋接用戶端</translation>
     </message>
     <message>
+        <source>Control</source>
+        <translation>控制</translation>
+    </message>
+    <message>
         <source>Configure</source>
         <translation>設定</translation>
     </message>
@@ -2020,6 +2032,22 @@ Duplicate: %1</source>
     <message>
         <source>Switch to profile: %1</source>
         <translation>切換到設定檔：%1</translation>
+    </message>
+    <message>
+        <source>Release</source>
+        <translation>交還</translation>
+    </message>
+    <message>
+        <source>Connect the bridge client first</source>
+        <translation>請先連線橋接用戶端</translation>
+    </message>
+    <message>
+        <source>Give the keyboard and mouse back to this computer</source>
+        <translation>將鍵盤和滑鼠交還給這台電腦</translation>
+    </message>
+    <message>
+        <source>Use the keyboard and mouse on this device until you release it</source>
+        <translation>將鍵盤和滑鼠交給此裝置，直到交還為止</translation>
     </message>
     <message>
         <source>Device not connected</source>

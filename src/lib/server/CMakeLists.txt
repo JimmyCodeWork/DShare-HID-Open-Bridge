@@ -6,6 +6,8 @@
 add_library(server STATIC
   BaseClientProxy.cpp
   BaseClientProxy.h
+  BridgeControlAction.cpp
+  BridgeControlAction.h
   BridgeProfileAction.cpp
   BridgeProfileAction.h
   DisplayEdges.cpp # DShare-HID: layout

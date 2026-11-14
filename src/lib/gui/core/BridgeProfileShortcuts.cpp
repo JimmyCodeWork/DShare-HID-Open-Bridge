@@ -143,6 +143,13 @@ void BridgeProfileShortcuts::setChoice(const QString &choice)
 
 QString BridgeProfileShortcuts::describe(const QString &choice)
 {
+  if (controlsBridgeClients()) {
+    // the cycling shortcut and the range of digits for the bridge clients
+    const QString first = keySequence(modifiers(choice), 0).toString(QKeySequence::NativeText);
+    const auto devices = std::clamp(static_cast<int>(bridgeComputers().size()), 1, kMaxPosition);
+    return QStringLiteral("%1…%2").arg(first).arg(devices);
+  }
+
   // the first shortcut and the range of digits
   const QString first = keySequence(modifiers(choice), kMinPosition).toString(QKeySequence::NativeText);
   const int last = std::max(count(), kDefaultProfileCount);
@@ -152,7 +159,37 @@ QString BridgeProfileShortcuts::describe(const QString &choice)
 QKeySequence BridgeProfileShortcuts::shortcut(int position)
 {
   const int chosen = modifiers(choice());
-  if (chosen == 0 || position < kMinPosition || position > s_writtenCount) {
+  if (controlsBridgeClients() || chosen == 0 || position < kMinPosition || position > s_writtenCount) {
+    return {};
+  }
+  return keySequence(chosen, position);
+}
+
+bool BridgeProfileShortcuts::controlsBridgeClients()
+{
+#if defined(DSH_CUSTOM_BRIDGE_RUNTIME_KEYS)
+  return true;
+#else
+  return false;
+#endif
+}
+
+QStringList BridgeProfileShortcuts::bridgeComputers()
+{
+  QStringList names;
+  for (const QString &configPath : BridgeClientConfigManager::getAllConfigFiles()) {
+    if (const QString name = BridgeClientConfigManager::readScreenName(configPath);
+        !name.isEmpty() && !names.contains(name)) {
+      names.append(name);
+    }
+  }
+  return names;
+}
+
+QKeySequence BridgeProfileShortcuts::controlShortcut(int position)
+{
+  const int chosen = modifiers(choice());
+  if (!controlsBridgeClients() || chosen == 0 || position < 0 || position > s_writtenCount) {
     return {};
   }
   return keySequence(chosen, position);
@@ -171,6 +208,24 @@ int BridgeProfileShortcuts::count()
 
 void BridgeProfileShortcuts::writeHotkeys(QTextStream &stream)
 {
+  if (controlsBridgeClients()) {
+    const int chosen = modifiers(choice());
+    const QStringList computers = bridgeComputers();
+    s_writtenCount = (chosen == 0 || computers.isEmpty()) ? 0 : std::min(static_cast<int>(computers.size()), kMaxPosition);
+    if (s_writtenCount == 0) {
+      return;
+    }
+    const QString names = configModifiers(chosen);
+    stream << QStringLiteral("\tkeystroke(%1+0) = toggleBridgeControl(%2)\n").arg(names, computers.join(QLatin1Char(',')));
+    for (int position = kMinPosition; position <= s_writtenCount; ++position) {
+      stream << QStringLiteral("\tkeystroke(%1+%2) = toggleBridgeControl(%3)\n")
+                    .arg(names)
+                    .arg(position)
+                    .arg(computers.at(position - 1));
+    }
+    return;
+  }
+
   // only as many as there are profiles: the others would just take the keys from other
   // applications (all of them, without bridge clients)
   const int chosen = modifiers(choice());

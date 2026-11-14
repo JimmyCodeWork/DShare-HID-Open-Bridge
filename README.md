@@ -25,10 +25,11 @@ The v0.1.0-alpha.2 prerelease provides an experimental Windows installer (`.msi`
 1. Install the MSI, or extract the portable package and run `dshare-hid.exe`. The portable package keeps its settings in its `settings` folder and does not include the background service, so it cannot control the device at UAC prompts or on the sign-in screen.
 2. Connect an ESP32-C3 SuperMini and choose **File → Set up open bridge...** to build and flash the firmware with a new device key. There is no prebuilt firmware, because every build contains its own private key. This step requires Python 3 and the packages listed in [Firmware setup and security](#firmware-setup-and-security).
 3. Pair the iPad with **Open Bridge** in its Bluetooth settings.
+4. Press **Ctrl+Alt+Shift+1** (or the bridge client's **Control** button) to hand the keyboard and mouse to the iPad, and press it again to take them back. Ctrl+Alt+Shift+0 cycles through all bridge clients. See the [custom bridge guide](docs/custom-bridge.md) (in Traditional Chinese) for moving the cursor across screen edges instead.
 
 For development and build information, see:
 
-- [Custom bridge development guide](docs/custom-bridge.md)
+- [Custom bridge development guide](docs/custom-bridge.md) (in Traditional Chinese)
 - [Firmware, keys and flashing](firmware/open-bridge/README.md)
 - [Desktop application build guide](docs/dev/build.md)
 

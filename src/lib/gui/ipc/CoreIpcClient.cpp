@@ -22,6 +22,11 @@ void CoreIpcClient::sendStop()
   sendMessage(QStringLiteral("stop"));
 }
 
+void CoreIpcClient::sendBridgeControl(const QStringList &computers)
+{
+  sendMessage(QStringLiteral("bridgeControl=%1").arg(computers.join(QLatin1Char(','))));
+}
+
 void CoreIpcClient::processCommand(const QString &command, const QStringList &parts)
 {
   const auto args = parts.size() >= 2 ? parts.at(1) : QString();

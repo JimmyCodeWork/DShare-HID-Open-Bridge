@@ -193,5 +193,16 @@
     "deskflow::gui::BridgeClientConfigDialog": {
         "Absolute pointer (experimental)": "絕對座標指標（實驗性）",
         "Send the pointer position instead of relative movement, so the pointer on the device cannot drift. Requires Open Bridge firmware that supports it, and may not work on every device. Takes effect the next time the bridge client connects.": "傳送指標的絕對位置而非相對位移，使裝置上的指標不會偏移。需要支援此功能的 Open Bridge 韌體，且不一定適用於所有裝置。下次橋接用戶端連線時生效。"
+    },
+    "DeskflowHidExtension": {
+        "Start the server to hand control to a bridge client": "請先啟動伺服器，才能將控制權交給橋接用戶端",
+        "Bridge Control Shortcuts": "橋接控制快速鍵"
+    },
+    "deskflow::gui::BridgeClientWidget": {
+        "Control": "控制",
+        "Release": "交還",
+        "Connect the bridge client first": "請先連線橋接用戶端",
+        "Give the keyboard and mouse back to this computer": "將鍵盤和滑鼠交還給這台電腦",
+        "Use the keyboard and mouse on this device until you release it": "將鍵盤和滑鼠交給此裝置，直到交還為止"
     }
 }
