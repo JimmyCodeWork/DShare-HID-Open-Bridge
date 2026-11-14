@@ -1815,6 +1815,14 @@ Enabling this setting will disable the server config GUI.</source>
         <translation>裝置插入時自動連線到 DShare-HID 伺服器。</translation>
     </message>
     <message>
+        <source>Absolute pointer (experimental)</source>
+        <translation>絕對座標指標（實驗性）</translation>
+    </message>
+    <message>
+        <source>Send the pointer position instead of relative movement, so the pointer on the device cannot drift. Requires Open Bridge firmware that supports it, and may not work on every device. Takes effect the next time the bridge client connects.</source>
+        <translation>傳送指標的絕對位置而非相對位移，使裝置上的指標不會偏移。需要支援此功能的 Open Bridge 韌體，且不一定適用於所有裝置。下次橋接用戶端連線時生效。</translation>
+    </message>
+    <message>
         <source>Automatically restore screen location for the active profile</source>
         <translation>自動還原目前設定檔的螢幕位置</translation>
     </message>

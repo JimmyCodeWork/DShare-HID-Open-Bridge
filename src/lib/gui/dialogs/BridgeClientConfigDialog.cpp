@@ -150,6 +150,15 @@ BridgeClientConfigDialog::BridgeClientConfigDialog(
 
   advancedLayout->addWidget(m_checkAutoConnect);
 
+  // Modified 2026-11-14: experimental absolute pointer for the Open Bridge firmware
+  m_checkAbsolutePointer = new QCheckBox(tr("Absolute pointer (experimental)"), this);
+  m_checkAbsolutePointer->setToolTip(
+      tr("Send the pointer position instead of relative movement, so the pointer on the device "
+         "cannot drift. Requires Open Bridge firmware that supports it, and may not work on every "
+         "device. Takes effect the next time the bridge client connects.")
+  );
+  advancedLayout->addWidget(m_checkAbsolutePointer);
+
   // Global Bonding Location (Moved from Profile Group)
   m_checkBondLocation = new QCheckBox(tr("Automatically restore screen location for the active profile"), this);
   m_checkBondLocation->setToolTip(
@@ -479,6 +488,10 @@ void BridgeClientConfigDialog::loadConfig()
   bool autoConnect =
       config.value(Settings::Bridge::AutoConnect, Settings::defaultValue(Settings::Bridge::AutoConnect)).toBool();
   m_checkAutoConnect->setChecked(autoConnect);
+  m_checkAbsolutePointer->setChecked(
+      config.value(Settings::Bridge::AbsolutePointer, Settings::defaultValue(Settings::Bridge::AbsolutePointer))
+          .toBool()
+  );
 
   QString activationState =
       config.value(Settings::Bridge::ActivationState, Settings::defaultValue(Settings::Bridge::ActivationState))
@@ -905,6 +918,7 @@ void BridgeClientConfigDialog::saveConfig()
 
   config.setValue(Settings::Bridge::BluetoothKeepAlive, m_checkBluetoothKeepAlive->isChecked());
   config.setValue(Settings::Bridge::AutoConnect, m_checkAutoConnect->isChecked());
+  config.setValue(Settings::Bridge::AbsolutePointer, m_checkAbsolutePointer->isChecked());
   config.setValue("BondScreenLocation", m_checkBondLocation->isChecked());
 
   config.sync();

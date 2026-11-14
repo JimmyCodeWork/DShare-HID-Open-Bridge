@@ -142,6 +142,8 @@ public:
     inline static const auto ShowLogs = QStringLiteral("bridge/showLogs");
     inline static const auto ProfileShortcuts = QStringLiteral("bridge/profileShortcuts");
     inline static const auto ProfileCount = QStringLiteral("bridge/profileCount");
+    // Open Bridge firmware: report the pointer position absolutely (experimental)
+    inline static const auto AbsolutePointer = QStringLiteral("bridge/absolutePointer");
   };
 
   struct Computer
@@ -384,6 +386,7 @@ private:
     , Bridge::ShowLogs
     , Bridge::ProfileShortcuts
     , Bridge::ProfileCount
+    , Bridge::AbsolutePointer
   };
 
   // When checking the default values this list contains the ones that default to false.

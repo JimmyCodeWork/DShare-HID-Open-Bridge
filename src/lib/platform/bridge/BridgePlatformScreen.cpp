@@ -92,6 +92,11 @@ BridgePlatformScreen::BridgePlatformScreen(
     });
   }
 
+  m_absolutePointer = Settings::value(Settings::Bridge::AbsolutePointer).toBool();
+  if (m_absolutePointer) {
+    LOG_INFO("BridgeScreen: absolute pointer enabled (experimental)");
+  }
+
   m_bluetoothKeepAliveEnabled = Settings::value(Settings::Bridge::BluetoothKeepAlive).toBool();
   if (m_bluetoothKeepAliveEnabled && m_events != nullptr) {
     LOG_INFO("BridgeScreen: Bluetooth keep-alive enabled, starting timer");
@@ -222,6 +227,16 @@ void BridgePlatformScreen::fakeMouseMove(int32_t x, int32_t y)
 {
   LOG_VERBOSE("BridgeScreen: mouse move to %d,%d", x, y);
 
+  // Modified 2026-11-14: an absolute pointer goes straight to the position, so it can't drift
+  if (m_absolutePointer) {
+    m_cursorX = x;
+    m_cursorY = y;
+    if (m_pointerHomed && !sendMouseAbsoluteEvent(x, y)) {
+      LOG_ERR("BridgeScreen: failed to send absolute mouse position");
+    }
+    return;
+  }
+
   // Modified 2026-11-13: the client moves to the entry position just before enter(). The
   // device's pointer is somewhere else, so only record the position; enter() homes the pointer
   // and moves it there.
@@ -293,6 +308,14 @@ void BridgePlatformScreen::resetMouseAccumulator() const
 
 void BridgePlatformScreen::fakeKeyDown(KeyID id, KeyModifierMask mask, KeyButton button, const std::string &)
 {
+  // Modified 2026-11-14: Ctrl+Shift+Home re-synchronises the device's pointer with the tracked
+  // position instead of being typed (see PointerHoming.h)
+  if (pointer::isRecalibrateShortcut(id, mask)) {
+    LOG_INFO("BridgeScreen: recalibrating the pointer");
+    m_recalibrateButton = button;
+    homePointer();
+    return;
+  }
   m_keyboard.keyDown(id, mask, button);
 }
 
@@ -300,11 +323,18 @@ bool BridgePlatformScreen::fakeKeyRepeat(
     KeyID id, KeyModifierMask mask, int32_t count, KeyButton button, const std::string &
 )
 {
+  if (m_recalibrateButton != 0 && button == m_recalibrateButton) {
+    return true;
+  }
   return m_keyboard.keyRepeat(id, mask, count, button);
 }
 
 bool BridgePlatformScreen::fakeKeyUp(KeyButton button)
 {
+  if (m_recalibrateButton != 0 && button == m_recalibrateButton) {
+    m_recalibrateButton = 0;
+    return true;
+  }
   m_keyboard.keyUp(button);
   return true;
 }
@@ -409,16 +439,35 @@ void BridgePlatformScreen::leave()
   // the device's pointer stays where it is; home it again on the next entry
   m_entered = false;
   m_pointerHomed = false;
+  m_recalibrateButton = 0;
 }
 
 void BridgePlatformScreen::homePointer()
 {
+  if (m_absolutePointer) {
+    if (!sendMouseAbsoluteEvent(m_cursorX, m_cursorY)) {
+      LOG_WARN("BridgeScreen: failed to send the absolute pointer position");
+    }
+    m_pointerHomed = true;
+    return;
+  }
+
   LOG_DEBUG("BridgeScreen: homing the pointer, then moving it to %d,%d", m_cursorX, m_cursorY);
   if (!sendMouseSteps(pointer::homeAndMoveTo(m_cursorX, m_cursorY), true)) {
     LOG_WARN("BridgeScreen: failed to home the pointer");
   }
   // even if a report failed, later moves are relative to the tracked position again
   m_pointerHomed = true;
+}
+
+bool BridgePlatformScreen::sendMouseAbsoluteEvent(int32_t x, int32_t y) const
+{
+  const uint16_t ax = pointer::toAbsolute(x, m_screenWidth);
+  const uint16_t ay = pointer::toAbsolute(y, m_screenHeight);
+  return sendEvent(
+      HidEventType::MouseAbsolute, {static_cast<uint8_t>(ax & 0xFF), static_cast<uint8_t>(ax >> 8),
+                                    static_cast<uint8_t>(ay & 0xFF), static_cast<uint8_t>(ay >> 8)}
+  );
 }
 
 bool BridgePlatformScreen::sendMouseSteps(const std::vector<PointerStep> &steps, bool paced) const

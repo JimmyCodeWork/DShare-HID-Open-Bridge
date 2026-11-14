@@ -115,4 +115,39 @@ void PointerHomingTests::homingClampsNegativeTargets()
   QCOMPARE(toTarget.y, int64_t(300));
 }
 
+void PointerHomingTests::absoluteCoversTheWholeRange()
+{
+  QCOMPARE(toAbsolute(0, 2752), uint16_t(0));
+  QCOMPARE(toAbsolute(2751, 2752), kAbsoluteMax);
+  QCOMPARE(toAbsolute(1032, 2065), uint16_t(16384));
+  // monotonic across the screen
+  uint16_t previous = 0;
+  for (int32_t x = 0; x < 2064; ++x) {
+    const auto value = toAbsolute(x, 2064);
+    QVERIFY(value >= previous);
+    previous = value;
+  }
+}
+
+void PointerHomingTests::absoluteClampsToTheScreen()
+{
+  QCOMPARE(toAbsolute(-10, 1000), uint16_t(0));
+  QCOMPARE(toAbsolute(5000, 1000), kAbsoluteMax);
+  QCOMPARE(toAbsolute(0, 1), uint16_t(0));
+  QCOMPARE(toAbsolute(7, 0), uint16_t(0));
+}
+
+void PointerHomingTests::recalibrateShortcut()
+{
+  QVERIFY(isRecalibrateShortcut(kKeyHome, KeyModifierControl | KeyModifierShift));
+  // lock keys don't matter
+  QVERIFY(isRecalibrateShortcut(kKeyHome, KeyModifierControl | KeyModifierShift | KeyModifierCapsLock));
+  QVERIFY(isRecalibrateShortcut(kKeyHome, KeyModifierControl | KeyModifierShift | KeyModifierNumLock));
+  // other combinations are typed normally
+  QVERIFY(!isRecalibrateShortcut(kKeyHome, KeyModifierControl));
+  QVERIFY(!isRecalibrateShortcut(kKeyHome, KeyModifierShift));
+  QVERIFY(!isRecalibrateShortcut(kKeyHome, KeyModifierControl | KeyModifierShift | KeyModifierAlt));
+  QVERIFY(!isRecalibrateShortcut(kKeyEnd, KeyModifierControl | KeyModifierShift));
+}
+
 QTEST_MAIN(PointerHomingTests)

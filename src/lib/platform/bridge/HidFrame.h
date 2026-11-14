@@ -19,6 +19,9 @@ enum class HidEventType : uint8_t
   MouseScroll = 0x06,
   ConsumerControlPress = 0x07,
   ConsumerControlRelease = 0x08,
+  // Open Bridge firmware (experimental): the pointer position as two little-endian uint16
+  // values, X then Y, scaled to 0..32767 across the device's screen (see PointerHoming.h)
+  MouseAbsolute = 0x09,
 };
 
 /**
