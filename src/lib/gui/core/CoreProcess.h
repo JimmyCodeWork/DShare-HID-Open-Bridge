@@ -82,6 +82,10 @@ public:
     m_mode = mode;
   }
 
+  /// DShare-HID Open Bridge: ask the running server to hand control to these bridge clients,
+  /// or take it back (server/BridgeControlAction). False if the server isn't reachable.
+  bool requestBridgeControl(const QStringList &computers);
+
 Q_SIGNALS:
   void error(deskflow::gui::CoreProcess::Error error);
   void logLine(const QString &line);
@@ -97,6 +101,8 @@ Q_SIGNALS:
   void peerFingerprint(const QString &fingerprint);
   void missingKeyboardLayouts(const QString &layouts);
   void bridgeProfileHotkey(int position); // DShare-HID
+  // DShare-HID Open Bridge: the bridge client that now has control, empty when none
+  void bridgeControlChanged(const QString &computer);
   void computerShape(const QString &message); // DShare-HID: layout
 
 private Q_SLOTS:

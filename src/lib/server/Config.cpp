@@ -14,6 +14,7 @@
 #include "deskflow/KeyTypes.h"
 #include "deskflow/OptionTypes.h"
 #include "net/SocketException.h"
+#include "server/BridgeControlAction.h"
 #include "server/BridgeProfileAction.h"
 #include "server/Server.h"
 
@@ -960,6 +961,22 @@ void Config::parseAction(
     }
 
     action = new BridgeProfileAction(position);
+  }
+
+  // DShare-HID Open Bridge: hand control to bridge clients or take it back (see BridgeControlAction)
+  else if (name == BridgeControlAction::kName) {
+    // the GUI writes every bridge client it knows of; one that isn't a computer of this
+    // configuration can't connect, so it is never picked rather than an error
+    std::vector<std::string> computers;
+    for (const auto &arg : args) {
+      if (!arg.empty()) {
+        computers.push_back(isComputer(arg) ? getCanonicalName(arg) : arg);
+      }
+    }
+    if (computers.empty()) {
+      throw ServerConfigReadException(s, "syntax for action: toggleBridgeControl(<computer>[,<computer>...])");
+    }
+    action = new BridgeControlAction(m_events, std::move(computers));
   }
 
   else {

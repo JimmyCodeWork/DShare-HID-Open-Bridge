@@ -20,6 +20,7 @@
 #include "deskflow/ipc/CoreIpcServer.h"
 #include "platform/OpenSSLCompat.h"
 #include "platform/bridge/CdcTransport.h"
+#include "server/Server.h"
 
 #ifndef _WIN32
 #include <signal.h>
@@ -255,6 +256,21 @@ int main(int argc, char **argv)
   const auto ipcServer = new deskflow::core::ipc::CoreIpcServer(&app); // NOSONAR - Qt managed
   QObject::connect(
       ipcServer, &deskflow::core::ipc::IpcServer::stopProcessRequested, coreApp, &App::quit, Qt::DirectConnection
+  );
+  // DShare-HID Open Bridge: the GUI's request to hand control to a bridge client. The server
+  // only posts an event here; it is handled on the server's own thread.
+  QObject::connect(
+      ipcServer, &deskflow::core::ipc::IpcServer::bridgeControlRequested, ipcServer,
+      [coreApp](const QStringList &computers) {
+        auto *serverApp = dynamic_cast<ServerApp *>(coreApp);
+        if (Server *server = serverApp ? serverApp->getServerPtr() : nullptr; server != nullptr) {
+          std::vector<std::string> names;
+          for (const auto &computer : computers) {
+            names.push_back(computer.toStdString());
+          }
+          server->requestBridgeControl(names);
+        }
+      }
   );
   // Bridge cores run alongside the server core and would share its IPC name, so the GUI's
   // core IPC client (connection state, stop) could attach to a bridge instead of the server.

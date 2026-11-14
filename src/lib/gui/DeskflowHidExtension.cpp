@@ -163,6 +163,11 @@ void DeskflowHidExtension::setup()
         &m_mainWindow->m_coreProcess, &CoreProcess::bridgeProfileHotkey, this,
         &DeskflowHidExtension::bridgeProfileHotkeyPressed, Qt::QueuedConnection
     );
+    // Open Bridge: which bridge client has control, from the server
+    connect(
+        &m_mainWindow->m_coreProcess, &CoreProcess::bridgeControlChanged, this,
+        &DeskflowHidExtension::bridgeControlChanged
+    );
 
     // links are only worth a restart while the core is using them
     auto *follow = new DisplayLayoutFollow(
@@ -332,6 +337,7 @@ void DeskflowHidExtension::loadBridgeClientConfigs()
     connect(widget, &BridgeClientWidget::refreshDevicesRequested, this, [this]() {
       this->updateBridgeClientDeviceStates();
     });
+    connect(widget, &BridgeClientWidget::controlRequested, this, &DeskflowHidExtension::bridgeClientControlRequested);
 
     // Add to grid layout (1 column per row)
     if (gridLayout) {
@@ -876,6 +882,7 @@ void DeskflowHidExtension::usbDeviceConnected(const UsbDeviceInfo &device)
     connect(widget, &BridgeClientWidget::refreshDevicesRequested, this, [this]() {
       this->updateBridgeClientDeviceStates();
     });
+    connect(widget, &BridgeClientWidget::controlRequested, this, &DeskflowHidExtension::bridgeClientControlRequested);
 
     QWidget *bridgeClientsWidget = m_mainWindow->findChild<QWidget *>("widgetBridgeClients");
     QGridLayout *gridLayout = nullptr;
@@ -1354,6 +1361,32 @@ void DeskflowHidExtension::bridgeClientProfileSwitchRequested(
   applyDeviceProfiles(devicePath, configPath, profiles);
 }
 
+void DeskflowHidExtension::bridgeClientControlRequested(const QString &screenName, bool take)
+{
+  // the server toggles: a request for the bridge client with control gives it back
+  Q_UNUSED(take)
+  if (!m_mainWindow->m_coreProcess.requestBridgeControl({screenName})) {
+    m_mainWindow->setStatus(tr("Start the server to hand control to a bridge client"));
+  }
+}
+
+void DeskflowHidExtension::bridgeControlChanged(const QString &screenName)
+{
+  for (BridgeClientWidget *widget : std::as_const(m_bridgeClientWidgets)) {
+    widget->setHasControl(!screenName.isEmpty() && widget->screenName() == screenName);
+  }
+  refreshControlShortcuts();
+}
+
+void DeskflowHidExtension::refreshControlShortcuts()
+{
+  const QStringList computers = BridgeProfileShortcuts::bridgeComputers();
+  for (BridgeClientWidget *widget : std::as_const(m_bridgeClientWidgets)) {
+    const auto index = computers.indexOf(widget->screenName());
+    widget->setControlShortcut(index >= 0 ? BridgeProfileShortcuts::controlShortcut(static_cast<int>(index) + 1) : QKeySequence());
+  }
+}
+
 void DeskflowHidExtension::bridgeProfileHotkeyPressed(int position)
 {
   // the bridge client the cursor is on, or else the only one connected
@@ -1483,7 +1516,11 @@ void DeskflowHidExtension::refreshTrayProfileMenus()
 
 void DeskflowHidExtension::setupProfileShortcutsMenu()
 {
-  auto *menu = new QMenu(tr("Bridge Profile Shortcuts"), m_mainWindow);
+  // Open Bridge builds: the shortcuts hand control to bridge clients (BridgeProfileShortcuts)
+  auto *menu = new QMenu(
+      BridgeProfileShortcuts::controlsBridgeClients() ? tr("Bridge Control Shortcuts") : tr("Bridge Profile Shortcuts"),
+      m_mainWindow
+  );
   auto *group = new QActionGroup(menu);
   const QString current = BridgeProfileShortcuts::choice();
 
@@ -2061,6 +2098,12 @@ bool DeskflowHidExtension::hasActiveBridgeClients() const
 
 void DeskflowHidExtension::onServerConnectionStateChanged(CoreProcess::ConnectionState state)
 {
+  // the server wrote its hotkeys when it started; no server, no bridge client with control
+  if (state == CoreProcess::ConnectionState::Disconnected) {
+    bridgeControlChanged({});
+  } else {
+    refreshControlShortcuts();
+  }
   const bool isReady = isServerReady();
   // Connecting state handling (logging only)
   if (state == CoreProcess::ConnectionState::Connecting) {

@@ -16,6 +16,14 @@ private Q_SLOTS:
   void positionRejectsOthers();
   void configReadsHotkey();
   void configRejectsBadPosition();
+  // Open Bridge: toggleBridgeControl (server/BridgeControlAction)
+  void controlGoesToTheFirstConnected();
+  void controlCyclesAndComesBack();
+  void controlTogglesOneComputer();
+  void controlMovesFromAnotherComputer();
+  void controlWithNothingConnected();
+  void configReadsControlHotkey();
+  void configRejectsEmptyControl();
 
 private:
   // reading a configuration's options resolves the server's address, and reads the settings

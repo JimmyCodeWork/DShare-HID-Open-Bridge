@@ -151,6 +151,11 @@ enum class EventTypes : uint32_t
   */
   ServerLockCursorToComputer,
 
+  /** DShare-HID Open Bridge: hand control to a bridge client or take it back
+      (server/BridgeControlAction). The event data is a pointer to BridgeControlInfo.
+  */
+  ServerBridgeControl,
+
   /// This event is sent when the computer has been switched to a client.
   ServerComputerSwitched,
 

@@ -72,6 +72,10 @@ private Q_SLOTS:
   void bridgeClientProfileSwitchRequested(const QString &devicePath, const QString &configPath, int profileIndex);
   // a profile shortcut, passed on by the server (see BridgeProfileShortcuts)
   void bridgeProfileHotkeyPressed(int position);
+  // Open Bridge: hand control to a bridge client (server/BridgeControlAction)
+  void bridgeClientControlRequested(const QString &screenName, bool take);
+  void bridgeControlChanged(const QString &screenName);
+  void refreshControlShortcuts();
 
   // Slots for BridgeClientProcess signals
   void onBridgeProcessLogAvailable(const QString &devicePath, const QString &line);

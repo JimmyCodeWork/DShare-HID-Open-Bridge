@@ -21,6 +21,7 @@
 #include "deskflow/StreamChunker.h"
 #include "deskflow/ipc/CoreIpc.h"
 #include "net/TCPSocket.h"
+#include "server/BridgeControlAction.h" // DShare-HID: Open Bridge
 #include "server/ClientListener.h"
 #include "server/ClientProxy.h"
 #include "server/ClientProxyUnknown.h"
@@ -114,6 +115,9 @@ Server::Server(ServerConfig &config, PrimaryClient *primaryClient, deskflow::Com
   });
   m_events->addHandler(EventTypes::ServerLockCursorToComputer, m_inputFilter, [this](const auto &e) {
     handleLockCursorToComputerEvent(e);
+  });
+  m_events->addHandler(EventTypes::ServerBridgeControl, m_inputFilter, [this](const auto &e) {
+    handleBridgeControlEvent(e);
   });
   m_events->addHandler(EventTypes::PrimaryComputerFakeInputBegin, m_inputFilter, [this](const auto &) {
     m_primaryClient->fakeInputBegin();
@@ -338,6 +342,65 @@ std::string Server::getName(const BaseClientProxy *client) const
   return name;
 }
 
+void Server::requestBridgeControl(const std::vector<std::string> &computers)
+{
+  // the event queue is thread-safe; the handler runs on the server's thread
+  m_events->addEvent(Event(EventTypes::ServerBridgeControl, m_inputFilter, new BridgeControlInfo(computers)));
+}
+
+void Server::handleBridgeControlEvent(const Event &event)
+{
+  const auto *info = static_cast<BridgeControlInfo *>(event.getData());
+
+  std::set<std::string> connected;
+  for (const auto &[name, client] : m_clients) {
+    if (client != m_primaryClient) {
+      connected.insert(name);
+    }
+  }
+
+  const std::string target = deskflow::server::nextBridgeControl(info->m_computers, connected, m_bridgeControl);
+  if (target.empty()) {
+    if (m_bridgeControl.empty()) {
+      LOG_INFO("bridge control: none of the computers is connected");
+      return;
+    }
+    LOG_INFO("bridge control: back to %s", getName(m_primaryClient).c_str());
+    setBridgeControl({});
+    jumpToComputer(m_primaryClient);
+    return;
+  }
+
+  LOG_INFO("bridge control: %s", target.c_str());
+  const auto client = m_clients.find(target);
+  if (client == m_clients.end()) {
+    return;
+  }
+  // switch first: leaving the previous bridge client ends its control (switchComputer)
+  if (m_active != client->second) {
+    jumpToComputer(client->second);
+  }
+  setBridgeControl(target);
+}
+
+void Server::setBridgeControl(const std::string &computer)
+{
+  if (computer == m_bridgeControl) {
+    return;
+  }
+  m_bridgeControl = computer;
+
+  // lock the cursor to the bridge client, or release the lock bridge control took
+  const bool lock = !computer.empty();
+  if (lock != m_lockedToComputer) {
+    m_lockedToComputer = lock;
+    LOG_INFO("cursor %s current computer", m_lockedToComputer ? "locked to" : "unlocked from");
+    m_primaryClient->reconfigure(getActivePrimarySides());
+  }
+
+  ipcSendToClient(QStringLiteral("bridgeControl"), QString::fromStdString(computer));
+}
+
 uint32_t Server::getActivePrimarySides() const
 {
   using enum DirectionMask;
@@ -401,6 +464,12 @@ int32_t Server::getJumpZoneSize(const BaseClientProxy *client) const
 void Server::switchComputer(BaseClientProxy *dst, int32_t x, int32_t y, bool forScreensaver)
 {
   assert(dst != nullptr);
+
+  // DShare-HID: switching away from the bridge client with control (a hotkey, the
+  // screensaver) ends bridge control and its lock
+  if (!m_bridgeControl.empty() && getName(dst) != m_bridgeControl) {
+    setBridgeControl({});
+  }
 
   int32_t dx;
   int32_t dy;
@@ -1447,6 +1516,12 @@ void Server::handleLockCursorToComputerEvent(const Event &event)
     break;
   }
 
+  // DShare-HID: unlocking (e.g. with Scroll Lock) also ends bridge control
+  if (!newState && !m_bridgeControl.empty()) {
+    m_bridgeControl.clear();
+    ipcSendToClient(QStringLiteral("bridgeControl"));
+  }
+
   // enter new state
   if (newState != m_lockedToComputer) {
     m_lockedToComputer = newState;
@@ -1763,7 +1838,8 @@ void Server::onMouseMoveSecondary(int32_t dx, int32_t dy)
   // the mouse isn't actually moving because we're expecting some
   // program on the secondary computer to warp the mouse on us, so we
   // have no idea where it really is.
-  if (m_relativeMoves && isLockedToComputerServer()) {
+  // DShare-HID: a bridge client with bridge control always gets relative movement
+  if ((m_relativeMoves || !m_bridgeControl.empty()) && isLockedToComputerServer()) {
     LOG_VERBOSE("relative move on %s by %d,%d", getName(m_active).c_str(), dx, dy);
     m_active->mouseRelativeMove(dx, dy);
     return;
@@ -1961,6 +2037,11 @@ bool Server::removeClient(BaseClientProxy *client)
   m_events->removeHandler(ComputerShapeChanged, client->getEventTarget());
   m_events->removeHandler(ClipboardGrabbed, client->getEventTarget());
   m_events->removeHandler(ClipboardChanged, client->getEventTarget());
+
+  // DShare-HID: a bridge client that disconnects gives control back
+  if (!m_bridgeControl.empty() && getName(client) == m_bridgeControl) {
+    setBridgeControl({});
+  }
 
   // remove from list
   m_clients.erase(getName(client));

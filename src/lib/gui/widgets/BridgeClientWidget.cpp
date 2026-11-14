@@ -3,6 +3,8 @@
  */
 
 #include "BridgeClientWidget.h"
+
+#include "gui/core/BridgeProfileShortcuts.h"
 #include <QEvent>
 
 #include "common/Settings.h"
@@ -71,6 +73,12 @@ BridgeClientWidget::BridgeClientWidget(
   m_btnConnect->setToolTip(tr("Connect/disconnect bridge client"));
 
   // Create Configure button
+  // Open Bridge: hand the keyboard and mouse to this device, or take them back
+  m_btnControl = new QPushButton(tr("Control"), this);
+  m_btnControl->setCheckable(true);
+  m_btnControl->setMinimumSize(80, 32);
+  m_btnControl->setVisible(BridgeProfileShortcuts::controlsBridgeClients());
+
   m_btnConfigure = new QPushButton(tr("Configure"), this);
   m_btnConfigure->setMinimumSize(80, 32);
   m_btnConfigure->setToolTip(tr("Configure bridge client settings"));
@@ -99,6 +107,7 @@ BridgeClientWidget::BridgeClientWidget(
 
   // Add buttons and label to layout
   layout->addWidget(m_btnConnect);
+  layout->addWidget(m_btnControl);
   layout->addWidget(m_btnConfigure);
 
   // Profile buttons, right of the device name: filled in by setProfiles() once connected
@@ -119,6 +128,12 @@ BridgeClientWidget::BridgeClientWidget(
   // Connect signals
   connect(m_btnConnect, &QPushButton::toggled, this, &BridgeClientWidget::onConnectToggled);
   connect(m_btnConfigure, &QPushButton::clicked, this, &BridgeClientWidget::onConfigureClicked);
+  connect(m_btnControl, &QPushButton::clicked, this, [this](bool checked) {
+    // the server says whether it worked (setHasControl); until then show the current state
+    const QSignalBlocker blocker(m_btnControl);
+    m_btnControl->setChecked(m_hasControl);
+    Q_EMIT controlRequested(m_screenName, checked);
+  });
 
   refreshDeviceNameLabel();
   refreshActivationStateLabel();
@@ -140,6 +155,7 @@ void BridgeClientWidget::setConnected(bool connected)
 
   if (!connected) {
     m_profiles.clear();
+    m_hasControl = false;
   }
 
   updateActivationVisibility();
@@ -377,8 +393,42 @@ void BridgeClientWidget::setGroupLocked(bool locked, const QString &reason)
   refreshButtonStates();
 }
 
+void BridgeClientWidget::setHasControl(bool hasControl)
+{
+  if (m_hasControl == hasControl) {
+    return;
+  }
+  m_hasControl = hasControl;
+  refreshButtonStates();
+}
+
+void BridgeClientWidget::setControlShortcut(const QKeySequence &shortcut)
+{
+  m_controlShortcut = shortcut;
+  refreshButtonStates();
+}
+
 void BridgeClientWidget::refreshButtonStates()
 {
+  if (m_btnControl != nullptr) {
+    const QSignalBlocker blocker(m_btnControl);
+    m_btnControl->setChecked(m_hasControl);
+    m_btnControl->setText(m_hasControl ? tr("Release") : tr("Control"));
+    m_btnControl->setEnabled(m_isConnected);
+    QString tooltip;
+    if (!m_isConnected) {
+      tooltip = tr("Connect the bridge client first");
+    } else if (m_hasControl) {
+      tooltip = tr("Give the keyboard and mouse back to this computer");
+    } else {
+      tooltip = tr("Use the keyboard and mouse on this device until you release it");
+    }
+    if (!m_controlShortcut.isEmpty()) {
+      tooltip += QStringLiteral(" (%1)").arg(m_controlShortcut.toString(QKeySequence::NativeText));
+    }
+    m_btnControl->setToolTip(tooltip);
+  }
+
   const bool connectEnabled =
       m_deviceAvailable && (!m_groupLocked || m_isConnected) && (m_serverReady || m_isConnected);
   m_btnConnect->setEnabled(connectEnabled);
@@ -418,6 +468,7 @@ void BridgeClientWidget::onConnectToggled(bool checked)
   m_btnConnect->setText(checked ? tr("Disconnect") : tr("Connect"));
   if (!checked) {
     m_profiles.clear();
+    m_hasControl = false;
   }
   refreshButtonStates();
   refreshProfileButtons();
@@ -444,6 +495,7 @@ void BridgeClientWidget::retranslateUi()
 {
   m_btnConnect->setText(m_isConnected ? tr("Disconnect") : tr("Connect"));
   m_btnConfigure->setText(tr("Configure"));
+  // refreshButtonStates() below sets the Control button's text
 
   refreshDeviceNameLabel();
   refreshActivationStateLabel();

@@ -30,6 +30,9 @@ Q_SIGNALS:
   void configFileChanged(const QString &configFile);
   void startProcessRequested();
   void stopProcessRequested();
+  // DShare-HID Open Bridge: hand control to these bridge clients or take it back
+  // (server/BridgeControlAction)
+  void bridgeControlRequested(const QStringList &computers);
   void clearSettingsRequested();
 
 protected:

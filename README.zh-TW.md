@@ -25,10 +25,11 @@ v0.1.0-alpha.2 預覽版提供實驗性的 Windows 安裝程式（`.msi`）與�
 1. 安裝 MSI，或解壓縮可攜版後執行 `dshare-hid.exe`。可攜版的設定存放在其 `settings` 資料夾中，且不含背景服務，因此無法在 UAC 提示或 Windows 登入畫面操作裝置。
 2. 連接 ESP32-C3 SuperMini，選擇「**檔案 → 設定 Open Bridge...**」以建立新的裝置金鑰，並編譯、燒錄韌體。由於每份韌體都內含各自的私鑰，因此不提供預先編譯的韌體。此步驟需要 Python 3 及[韌體設定與安全性](#韌體設定與安全性)中列出的套件。
 3. 在 iPad 的藍牙設定中與「**Open Bridge**」配對。
+4. 按 **Ctrl+Alt+Shift+1**（或橋接用戶端的「**控制**」按鈕）把鍵盤和滑鼠交給 iPad，再按一次即交還；Ctrl+Alt+Shift+0 會依序切換所有橋接用戶端。若要改用游標移過螢幕邊緣的方式，請參閱[自製橋接開發指南](docs/custom-bridge.md)。
 
 開發與建置資訊請參閱：
 
-- [自製橋接開發指南](docs/custom-bridge.md)（英文）
+- [自製橋接開發指南](docs/custom-bridge.md)
 - [韌體、金鑰與燒錄說明](firmware/open-bridge/README.md)（英文）
 - [桌面程式建置指南](docs/dev/build.md)（英文）
 

@@ -20,6 +20,8 @@ public:
   explicit CoreIpcClient(QObject *parent = nullptr);
 
   void sendStop();
+  // DShare-HID Open Bridge: ask the server to hand control to these bridge clients or take it back
+  void sendBridgeControl(const QStringList &computers);
 
 Q_SIGNALS:
   void commandReceived(const QString &command, const QString &args);

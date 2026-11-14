@@ -725,9 +725,21 @@ void CoreProcess::onCoreIpcMessageReceived(const QString &command, const QString
     Q_EMIT missingKeyboardLayouts(args);
   } else if (command == "switchBridgeProfile") { // DShare-HID: see server/BridgeProfileAction
     Q_EMIT bridgeProfileHotkey(args.toInt());
+  } else if (command == "bridgeControl") { // DShare-HID Open Bridge: see server/BridgeControlAction
+    Q_EMIT bridgeControlChanged(args);
   } else if (command == "computerShape") { // DShare-HID: layout
     Q_EMIT computerShape(args);            // DShare-HID: layout
   }
+}
+
+bool CoreProcess::requestBridgeControl(const QStringList &computers)
+{
+  if (m_coreIpcClient == nullptr || !m_coreIpcClient->isConnected()) {
+    qWarning("can't request bridge control: the server's core ipc isn't connected");
+    return false;
+  }
+  m_coreIpcClient->sendBridgeControl(computers);
+  return true;
 }
 
 bool CoreProcess::checkSecureSocket(const QString &line)

@@ -29,7 +29,14 @@ CoreIpcServer &CoreIpcServer::instance()
 
 void CoreIpcServer::processCommand(QLocalSocket *clientSocket, const QString &command, const QStringList &parts)
 {
-  Q_UNUSED(parts)
+  if (command == QStringLiteral("bridgeControl")) {
+    // DShare-HID Open Bridge: bridgeControl=<computer>[,<computer>...]
+    const QStringList computers = parts.size() >= 2 ? parts.at(1).split(',', Qt::SkipEmptyParts) : QStringList();
+    LOG_DEBUG("core ipc server got bridge control request: %s", parts.value(1).toUtf8().constData());
+    writeToClientSocket(clientSocket, QStringLiteral("ok"));
+    Q_EMIT bridgeControlRequested(computers);
+    return;
+  }
   if (command == QStringLiteral("stop")) {
     LOG_DEBUG("core ipc server got stop message");
     writeToClientSocket(clientSocket, QStringLiteral("ok"));

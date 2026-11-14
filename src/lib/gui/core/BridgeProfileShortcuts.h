@@ -19,6 +19,11 @@ namespace deskflow::gui {
  * from 1.  They are hotkeys of the server (server/BridgeProfileAction), added to the server
  * configuration the GUI writes, so they work whichever computer the cursor is on.  The
  * server passes a pressed one on to the GUI, which picks the bridge client to switch.
+ *
+ * Open Bridge builds (DSH_CUSTOM_BRIDGE_RUNTIME_KEYS): the Open Bridge firmware has a single
+ * profile, so the same modifiers hand control to a bridge client instead
+ * (server/BridgeControlAction): modifiers + 0 cycles through the bridge clients and back to
+ * this computer, modifiers + N toggles the N-th bridge client (the order of bridgeComputers()).
  */
 class BridgeProfileShortcuts
 {
@@ -45,6 +50,17 @@ public:
   /// add the hotkeys to the options section of a server configuration, when there are
   /// bridge clients to switch
   static void writeHotkeys(QTextStream &stream);
+
+  /// whether the shortcuts hand control to bridge clients (Open Bridge builds) rather than
+  /// switch profiles
+  static bool controlsBridgeClients();
+
+  /// the bridge clients' screen names, in the order the control shortcuts number them
+  static QStringList bridgeComputers();
+
+  /// the control shortcut: 0 cycles through all bridge clients, N toggles the N-th; an empty
+  /// sequence when the server doesn't have it
+  static QKeySequence controlShortcut(int position);
 
 private:
   static int s_writtenCount; // how many writeHotkeys() last wrote
