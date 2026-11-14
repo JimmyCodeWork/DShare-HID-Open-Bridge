@@ -18,9 +18,15 @@ DShare-HID Open Bridge 是 [DShare-HID](https://github.com/lockekk/dshare-hid) �
 
 ## 開始使用
 
-[v0.1.0-alpha.1 預覽版](https://github.com/JimmyCodeWork/DShare-HID-Open-Bridge/releases/tag/v0.1.0-alpha.1)｜[所有發行版本](https://github.com/JimmyCodeWork/DShare-HID-Open-Bridge/releases)
+[v0.1.0-alpha.2 預覽版](https://github.com/JimmyCodeWork/DShare-HID-Open-Bridge/releases/tag/v0.1.0-alpha.2)｜[所有發行版本](https://github.com/JimmyCodeWork/DShare-HID-Open-Bridge/releases)
 
-目前的發行版本僅提供原始碼，**尚無經過驗證的安裝程式或可直接使用的韌體**。開發與建置資訊請參閱：
+v0.1.0-alpha.2 預覽版提供實驗性的 Windows 安裝程式（`.msi`）與可攜版（`-portable.zip`），兩者均未經程式碼簽章，請參閱[下載與驗證](#下載與驗證)。
+
+1. 安裝 MSI，或解壓縮可攜版後執行 `dshare-hid.exe`。可攜版的設定存放在其 `settings` 資料夾中，且不含背景服務，因此無法在 UAC 提示或 Windows 登入畫面操作裝置。
+2. 連接 ESP32-C3 SuperMini，選擇「**檔案 → 設定 Open Bridge...**」以建立新的裝置金鑰，並編譯、燒錄韌體。由於每份韌體都內含各自的私鑰，因此不提供預先編譯的韌體。此步驟需要 Python 3 及[韌體設定與安全性](#韌體設定與安全性)中列出的套件。
+3. 在 iPad 的藍牙設定中與「**Open Bridge**」配對。
+
+開發與建置資訊請參閱：
 
 - [自製橋接開發指南](docs/custom-bridge.md)（英文）
 - [韌體、金鑰與燒錄說明](firmware/open-bridge/README.md)（英文）

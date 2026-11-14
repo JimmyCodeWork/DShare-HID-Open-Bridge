@@ -18,9 +18,15 @@ The current target is a single-profile ESP32-C3 SuperMini. Other boards, switchi
 
 ## Getting started
 
-[v0.1.0-alpha.1 prerelease](https://github.com/JimmyCodeWork/DShare-HID-Open-Bridge/releases/tag/v0.1.0-alpha.1) | [All releases](https://github.com/JimmyCodeWork/DShare-HID-Open-Bridge/releases)
+[v0.1.0-alpha.2 prerelease](https://github.com/JimmyCodeWork/DShare-HID-Open-Bridge/releases/tag/v0.1.0-alpha.2) | [All releases](https://github.com/JimmyCodeWork/DShare-HID-Open-Bridge/releases)
 
-The current release provides source code only. **There is no verified installer or ready-to-use firmware yet.** For development and build information, see:
+The v0.1.0-alpha.2 prerelease provides an experimental Windows installer (`.msi`) and portable package (`-portable.zip`). Both are unsigned; see [Downloads and verification](#downloads-and-verification).
+
+1. Install the MSI, or extract the portable package and run `dshare-hid.exe`. The portable package keeps its settings in its `settings` folder and does not include the background service, so it cannot control the device at UAC prompts or on the sign-in screen.
+2. Connect an ESP32-C3 SuperMini and choose **File → Set up open bridge...** to build and flash the firmware with a new device key. There is no prebuilt firmware, because every build contains its own private key. This step requires Python 3 and the packages listed in [Firmware setup and security](#firmware-setup-and-security).
+3. Pair the iPad with **Open Bridge** in its Bluetooth settings.
+
+For development and build information, see:
 
 - [Custom bridge development guide](docs/custom-bridge.md)
 - [Firmware, keys and flashing](firmware/open-bridge/README.md)

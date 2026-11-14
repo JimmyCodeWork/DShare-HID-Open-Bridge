@@ -9,7 +9,13 @@ handshake and settings in NVS. Mouse movement from USB is accumulated and sent
 as at most one Bluetooth report every 10 ms, because the desktop can send
 movement far faster than a Bluetooth HID link delivers reports; a report per
 movement would back up the link and stall the USB input. Button and wheel
-reports carry any pending movement, so events keep their order. A device-name change takes effect in Bluetooth
+reports carry any pending movement, so events keep their order.
+
+An experimental absolute pointer (report ID 4, X/Y in 0..32767) is also
+exposed. The firmware uses it once the desktop sends absolute positions
+(HID event type `0x09`), which it does when **Absolute pointer
+(experimental)** is enabled in the bridge client's settings. Whether iPadOS
+accepts an absolute pointing device has not been verified on hardware. A device-name change takes effect in Bluetooth
 advertising after a restart. The firmware releases held inputs on Bluetooth
 disconnect or after 90 seconds without USB frames. Bluetooth pairing uses
 bonding and encryption, but has no display for authenticated passkey pairing.

@@ -135,6 +135,7 @@ private:
   // (see PointerHoming.h)
   void homePointer();
   bool sendMouseSteps(const std::vector<PointerStep> &steps, bool paced) const;
+  bool sendMouseAbsoluteEvent(int32_t x, int32_t y) const;
 
   std::shared_ptr<CdcTransport> m_transport;
   std::shared_ptr<requests::Queue> m_requests;
@@ -149,6 +150,10 @@ private:
   // false until the device's pointer has been homed since the cursor last entered; until then
   // absolute moves only update the tracked position
   bool m_pointerHomed = false;
+  // report the position absolutely instead of relative movement (Settings::Bridge::AbsolutePointer)
+  bool m_absolutePointer = false;
+  // the key button of a recalibrate shortcut press, so its repeats and release are not sent either
+  KeyButton m_recalibrateButton = 0;
   uint8_t m_mouseButtons = 0; // HID button bitmap
 
   BridgeKeyboard m_keyboard;

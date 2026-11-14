@@ -37,4 +37,20 @@ std::vector<PointerStep> homeAndMoveTo(int32_t x, int32_t y)
   return steps;
 }
 
+uint16_t toAbsolute(int32_t position, int32_t size)
+{
+  if (size <= 1) {
+    return 0;
+  }
+  const int64_t clamped = std::clamp<int64_t>(position, 0, size - 1);
+  return static_cast<uint16_t>((clamped * kAbsoluteMax + (size - 1) / 2) / (size - 1));
+}
+
+bool isRecalibrateShortcut(KeyID id, KeyModifierMask mask)
+{
+  constexpr KeyModifierMask held = KeyModifierShift | KeyModifierControl | KeyModifierAlt | KeyModifierMeta |
+                                   KeyModifierSuper | KeyModifierAltGr;
+  return id == kKeyHome && (mask & held) == (KeyModifierControl | KeyModifierShift);
+}
+
 } // namespace deskflow::bridge::pointer

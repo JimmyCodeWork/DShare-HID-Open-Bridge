@@ -19,6 +19,14 @@ void HidState::mouse(int16_t x, int16_t y, int8_t wheel)
                             static_cast<uint8_t>(wheel)};
   if (send_) send_(context_, Report::Mouse, report, sizeof(report));
 }
+void HidState::mouseAbsolute(int8_t wheel)
+{
+  absolutePending_ = false;
+  const uint8_t report[] = {buttons_, static_cast<uint8_t>(absoluteX_), static_cast<uint8_t>(absoluteX_ >> 8),
+                            static_cast<uint8_t>(absoluteY_), static_cast<uint8_t>(absoluteY_ >> 8),
+                            static_cast<uint8_t>(wheel)};
+  if (send_) send_(context_, Report::MouseAbsolute, report, sizeof(report));
+}
 int16_t HidState::takeMotion(int32_t &pending)
 {
   constexpr int32_t limit = std::numeric_limits<int16_t>::max();
@@ -28,6 +36,7 @@ int16_t HidState::takeMotion(int32_t &pending)
 }
 bool HidState::flushMotion()
 {
+  if (absolutePending_) { mouseAbsolute(0); return true; }
   if (!hasPendingMotion()) return false;
   const int16_t x = takeMotion(pendingX_);
   const int16_t y = takeMotion(pendingY_);
@@ -83,6 +92,7 @@ bool HidState::handle(const uint8_t *p, size_t n)
       const uint8_t mask = masks[d[0]];
       if (p[2] == 4) buttons_ |= mask; else buttons_ &= static_cast<uint8_t>(~mask);
     }
+    if (absolute_) { mouseAbsolute(0); return true; }
     {
       // the press or release happens where the pointer has moved to so far
       const int16_t x = takeMotion(pendingX_), y = takeMotion(pendingY_);
@@ -91,6 +101,7 @@ bool HidState::handle(const uint8_t *p, size_t n)
     return true;
   case 6:
     if (p[3] != 1) return false;
+    if (absolute_) { mouseAbsolute(static_cast<int8_t>(d[0])); return true; }
     {
       const int16_t x = takeMotion(pendingX_), y = takeMotion(pendingY_);
       mouse(x, y, static_cast<int8_t>(d[0]));
@@ -101,6 +112,16 @@ bool HidState::handle(const uint8_t *p, size_t n)
     if (p[2] == 7) consumer_ = uint16_t(d[0]) | (uint16_t(d[1]) << 8);
     else if (consumer_ == (uint16_t(d[0]) | (uint16_t(d[1]) << 8))) consumer_ = 0;
     consumer(); return true;
+  case 9: {
+    if (p[3] != 4) return false;
+    const uint16_t x = uint16_t(d[0]) | (uint16_t(d[1]) << 8), y = uint16_t(d[2]) | (uint16_t(d[3]) << 8);
+    // the report's logical range is 0..32767
+    absoluteX_ = x > 0x7fff ? 0x7fff : x;
+    absoluteY_ = y > 0x7fff ? 0x7fff : y;
+    absolute_ = absolutePending_ = true;
+    pendingX_ = pendingY_ = 0;
+    return true;
+  }
   default: return false;
   }
 }
@@ -110,6 +131,8 @@ void HidState::releaseAll()
   consumer_ = 0;
   pendingX_ = pendingY_ = 0;
   std::memset(keys_, 0, sizeof(keys_));
+  if (absolute_) mouseAbsolute(0);
+  absolute_ = absolutePending_ = false;
   keyboard(); mouse(0, 0, 0); consumer();
 }
 } // namespace open_bridge

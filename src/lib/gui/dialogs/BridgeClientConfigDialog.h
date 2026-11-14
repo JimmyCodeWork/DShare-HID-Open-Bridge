@@ -75,6 +75,7 @@ private:
   QCheckBox *m_checkInvertScroll;
   QCheckBox *m_checkBluetoothKeepAlive;
   QCheckBox *m_checkAutoConnect;
+  QCheckBox *m_checkAbsolutePointer;
 
   bool eventFilter(QObject *watched, QEvent *event) override; // Added
 

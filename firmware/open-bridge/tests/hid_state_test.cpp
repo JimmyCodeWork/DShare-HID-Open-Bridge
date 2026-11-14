@@ -57,6 +57,31 @@ int main()
   assert(event(3, {0xfb, 0xff, 0, 0})); assert(event(6, {1}));
   assert((reports.back().bytes == std::vector<uint8_t>{4, 0xfb, 0xff, 0, 0, 1}));
 
+  // absolute positions: only the latest one is sent, clamped to 0..32767
+  assert(!state.absoluteMode());
+  assert(event(9, {0x10, 0x00, 0x20, 0x00})); assert(event(9, {0x00, 0x40, 0xff, 0xff}));
+  assert(state.absoluteMode() && state.hasPendingMotion());
+  const size_t beforeAbs = reports.size();
+  assert(state.flushMotion() && reports.size() == beforeAbs + 1 && !state.flushMotion());
+  assert(reports.back().type == HidState::Report::MouseAbsolute);
+  assert((reports.back().bytes == std::vector<uint8_t>{4, 0x00, 0x40, 0xff, 0x7f, 0}));
+  assert(!event(9, {1, 2, 3}));
+
+  // in absolute mode buttons and the wheel are reported at the absolute position
+  assert(event(4, {1}));
+  assert(reports.back().type == HidState::Report::MouseAbsolute);
+  assert((reports.back().bytes == std::vector<uint8_t>{5, 0x00, 0x40, 0xff, 0x7f, 0}));
+  assert(event(6, {0xfe}));
+  assert(reports.back().type == HidState::Report::MouseAbsolute && reports.back().bytes[5] == 0xfe);
+
+  // releasing everything ends absolute mode and releases its buttons too
+  state.releaseAll();
+  assert(!state.absoluteMode());
+  assert(reports[reports.size()-4].type == HidState::Report::MouseAbsolute);
+  assert(reports[reports.size()-4].bytes[0] == 0);
+  assert(event(4, {1}) && reports.back().type == HidState::Report::Mouse);
+  state.releaseAll();
+
   // releasing everything drops pending movement
   assert(event(3, {1, 0, 1, 0}));
   state.releaseAll();

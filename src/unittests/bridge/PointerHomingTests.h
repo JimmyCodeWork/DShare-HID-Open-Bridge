@@ -17,4 +17,7 @@ private Q_SLOTS:
   void homingThenReachesTheTarget();
   void homingToTheCornerOnlyHomes();
   void homingClampsNegativeTargets();
+  void absoluteCoversTheWholeRange();
+  void absoluteClampsToTheScreen();
+  void recalibrateShortcut();
 };

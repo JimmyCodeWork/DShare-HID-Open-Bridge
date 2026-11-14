@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include "deskflow/KeyTypes.h"
+
 #include <cstdint>
 #include <vector>
 
@@ -57,6 +59,25 @@ std::vector<PointerStep> splitMove(int32_t dx, int32_t dy, int32_t maxStep = kMa
  * Negative coordinates are treated as 0.
  */
 std::vector<PointerStep> homeAndMoveTo(int32_t x, int32_t y);
+
+/// The largest coordinate an absolute pointer report carries (logical maximum in the firmware's
+/// report descriptor). 0 is the left or top edge, kAbsoluteMax the right or bottom edge.
+inline constexpr uint16_t kAbsoluteMax = 32767;
+
+/**
+ * @brief A cursor coordinate on a screen axis of @p size pixels, scaled to 0..kAbsoluteMax
+ *
+ * Coordinates outside the screen are clamped to its edges.
+ */
+uint16_t toAbsolute(int32_t position, int32_t size);
+
+/**
+ * @brief Whether a key press is the shortcut that re-synchronises the device's pointer
+ *
+ * Ctrl+Shift+Home, with no other modifier held (lock keys are ignored). The bridge handles it
+ * itself and doesn't send it to the device.
+ */
+bool isRecalibrateShortcut(KeyID id, KeyModifierMask mask);
 
 } // namespace pointer
 } // namespace deskflow::bridge
