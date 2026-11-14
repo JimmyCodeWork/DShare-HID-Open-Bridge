@@ -16,7 +16,12 @@ permissions:
   contents: read
 jobs:
   install:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    # after a preview build, only test packages built from this repository's own branches:
+    # a pull request from a fork runs code this repository hasn't reviewed
+    if: >-
+      github.event_name != 'workflow_run' || (
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: windows-2022
     timeout-minutes: 30
     steps:
