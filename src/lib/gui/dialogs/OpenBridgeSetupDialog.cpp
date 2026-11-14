@@ -4,6 +4,8 @@
  */
 #include "OpenBridgeSetupDialog.h"
 
+#include "gui/devices/UsbDeviceHelper.h"
+
 #include <QCloseEvent>
 #include <QComboBox>
 #include <QDir>
@@ -15,10 +17,15 @@
 #include <QPlainTextEdit>
 #include <QProcessEnvironment>
 #include <QPushButton>
-#include <QSettings>
 #include <QStandardPaths>
 #include <QTextCursor>
 #include <QVBoxLayout>
+
+#include <algorithm>
+
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
 
 namespace deskflow::gui {
 OpenBridgeSetupDialog::OpenBridgeSetupDialog(QWidget *parent) : QDialog(parent)
@@ -82,13 +89,61 @@ OpenBridgeSetupDialog::OpenBridgeSetupDialog(QWidget *parent) : QDialog(parent)
   refreshPorts();
 }
 
+namespace {
+
+// the item text for an ESP32-C3 port; portFromText() reads the port name back
+const QString kEsp32Suffix = QStringLiteral(" (ESP32-C3)");
+
+QString portFromText(const QString &text)
+{
+  // port names contain no spaces (COM3, /dev/ttyACM0); anything after one is a label
+  return text.trimmed().section(QLatin1Char(' '), 0, 0);
+}
+
+#ifdef Q_OS_WIN
+// Modified 2026-11-14: read the serial ports with the registry API. QSettings treats the
+// backslashes in this key's value names (e.g. "\Device\USBSER000") as group separators,
+// so it listed no ports and they had to be typed in.
+QStringList windowsSerialPorts()
+{
+  QStringList ports;
+  HKEY key = nullptr;
+  if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"HARDWARE\\DEVICEMAP\\SERIALCOMM", 0, KEY_READ, &key) != ERROR_SUCCESS) {
+    return ports;
+  }
+  for (DWORD index = 0;; ++index) {
+    wchar_t name[256];
+    DWORD nameLength = sizeof(name) / sizeof(name[0]);
+    wchar_t data[256];
+    DWORD dataSize = sizeof(data);
+    DWORD type = 0;
+    const LONG result =
+        RegEnumValueW(key, index, name, &nameLength, nullptr, &type, reinterpret_cast<BYTE *>(data), &dataSize);
+    if (result == ERROR_NO_MORE_ITEMS) {
+      break;
+    }
+    if (result != ERROR_SUCCESS || type != REG_SZ) {
+      continue;
+    }
+    const auto length = static_cast<qsizetype>(dataSize / sizeof(wchar_t));
+    const QString port = QString::fromWCharArray(data, length).remove(QChar(0)).trimmed();
+    if (!port.isEmpty()) {
+      ports.append(port);
+    }
+  }
+  RegCloseKey(key);
+  return ports;
+}
+#endif
+
+} // namespace
+
 void OpenBridgeSetupDialog::refreshPorts()
 {
-  const QString previous = m_ports->currentText();
+  const QString previous = portFromText(m_ports->currentText());
   QStringList ports;
 #ifdef Q_OS_WIN
-  QSettings registry(QStringLiteral("HKEY_LOCAL_MACHINE\\HARDWARE\\DEVICEMAP\\SERIALCOMM"), QSettings::NativeFormat);
-  for (const auto &key : registry.allKeys()) ports.append(registry.value(key).toString());
+  ports = windowsSerialPorts();
 #else
   const QDir dev(QStringLiteral("/dev"));
 #ifdef Q_OS_MACOS
@@ -100,9 +155,41 @@ void OpenBridgeSetupDialog::refreshPorts()
 #endif
   ports.removeDuplicates();
   ports.sort();
+
+  // list ESP32-C3 boards (Espressif's USB Serial/JTAG, which the bridge firmware uses) first
+  QStringList esp32Ports;
+  const auto devices = UsbDeviceHelper::getConnectedDevices(false);
+  for (auto it = devices.begin(); it != devices.end(); ++it) {
+    QString port = it.key();
+    port.remove(QStringLiteral("\\\\.\\")); // Windows device paths are \\.\COMn
+    esp32Ports.append(port);
+    if (!ports.contains(port)) {
+      ports.append(port);
+    }
+  }
+  std::stable_sort(ports.begin(), ports.end(), [&esp32Ports](const QString &a, const QString &b) {
+    return esp32Ports.contains(a) && !esp32Ports.contains(b);
+  });
+
   m_ports->clear();
-  m_ports->addItems(ports);
-  if (!previous.isEmpty()) m_ports->setEditText(previous);
+  for (const auto &port : std::as_const(ports)) {
+    m_ports->addItem(esp32Ports.contains(port) ? port + kEsp32Suffix : port);
+  }
+  if (!previous.isEmpty()) {
+    int index = -1;
+    for (int i = 0; i < m_ports->count() && index < 0; ++i) {
+      if (portFromText(m_ports->itemText(i)) == previous) {
+        index = i;
+      }
+    }
+    if (index >= 0) {
+      m_ports->setCurrentIndex(index);
+    } else {
+      m_ports->setEditText(previous);
+    }
+  } else if (!esp32Ports.isEmpty()) {
+    m_ports->setCurrentIndex(0);
+  }
 }
 
 bool OpenBridgeSetupDialog::extractFirmware()
@@ -121,7 +208,7 @@ bool OpenBridgeSetupDialog::extractFirmware()
 
 void OpenBridgeSetupDialog::startProvisioning()
 {
-  const QString port = m_ports->currentText().trimmed();
+  const QString port = portFromText(m_ports->currentText());
   if (port.isEmpty()) { m_status->setText(tr("Select or enter a serial port.")); return; }
   if (!extractFirmware()) { m_status->setText(tr("Could not prepare the bundled firmware files.")); return; }
 #ifdef Q_OS_WIN
