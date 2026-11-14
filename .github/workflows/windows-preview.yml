@@ -2,9 +2,15 @@ name: Windows preview build
 on:
   workflow_dispatch:
   push:
-    branches: [main, build/windows-preview]
+    branches: [build/windows-preview]
+  # Pull requests are built before they are merged, so merging doesn't build the same code again.
+  # Release builds come from tags (windows-release.yml); push to main without a pull request and
+  # the build can still be started by hand.
   pull_request:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
   workflow_call:
     inputs:
       ref:
